@@ -4,3 +4,10 @@ dist/
 .env
 .env.*
 .DS_Store
+.playwright/
+.playwright-cli/
+coverage/
+playwright-report/
+test-results/
+*.sock
+*.tsbuildinfo

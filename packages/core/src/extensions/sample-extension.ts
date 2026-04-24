@@ -1,4 +1,4 @@
-import { Page, Browser } from '@playwright/test';
+import { Page } from '@playwright/test';
 
 /**
  * Sample extension demonstrating the extension pattern.
