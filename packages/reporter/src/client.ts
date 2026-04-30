@@ -101,8 +101,8 @@ export class ReporterClient {
     try {
       const formData = new FormData();
       const blob = new Blob([content as unknown as Uint8Array<ArrayBuffer>], { type: 'application/octet-stream' });
-      formData.append('file', blob, filename);
       formData.append('type', type);
+      formData.append('file', blob, filename);
 
       const res = await this.request(`/api/v1/runs/${runId}/tests/${testId}/artifacts`, {
         method: 'POST',
@@ -116,23 +116,6 @@ export class ReporterClient {
     } catch {
       if (this.fallback) {
         await this.fallback.saveArtifact(testId, runId, type, filename, content);
-      }
-    }
-  }
-
-  async uploadTrace(runId: string, testId: string, entries: Array<Record<string, unknown>>): Promise<void> {
-    try {
-      const res = await this.request(`/api/v1/runs/${runId}/tests/${testId}/trace`, {
-        method: 'POST',
-        body: JSON.stringify({ entries }),
-      });
-
-      if (!(res && res.ok)) {
-        throw new Error('Upload failed');
-      }
-    } catch {
-      if (this.fallback) {
-        await this.fallback.saveActions(testId, runId, entries);
       }
     }
   }
