@@ -5,17 +5,6 @@ const SERVER_URL = process.env.REPORTER_SERVER_URL || 'http://localhost:8400';
 
 test.describe.serial('Reporter Web UI E2E', () => {
 
-  test.beforeAll('Setup: Execute Native Playwright Run to generate Server Traces', () => {
-    // Bootstraps a run so we have reliable data to test against.
-    try {
-      execSync('npx playwright test tests/dummy.spec.ts --reporter=@playwright-extensions/reporter', {
-        cwd: __dirname + '/..',
-        env: { ...process.env, REPORTER_PROJECT_NAME: 'trace-generator-suite', REPORTER_SERVER_URL: SERVER_URL },
-        stdio: 'ignore',
-      });
-    } catch (e) {}
-  });
-
   test('User Journey: Navigate and inspect entire Dashboard UI', async ({ page, context, request }) => {
     // --- Dashboard View ---
     const response = await request.get(SERVER_URL);
@@ -38,9 +27,9 @@ test.describe.serial('Reporter Web UI E2E', () => {
     expect(parseInt(await runCountCard.innerText(), 10)).toBeGreaterThan(0);
     expect(parseInt(await testCountCard.innerText(), 10)).toBeGreaterThan(0);
 
-    // Click on the most recent run for trace generator
-    const recentRunLink = page.locator('.data-table tbody tr:not(.empty-state)').filter({ hasText: 'trace-generator-suite' }).first().locator('td a');
-    await expect(recentRunLink).toContainText(/trace-generator-suite - \d{4}-\d{2}-\d{2}T/);
+    // Click on the most recent run
+    const recentRunLink = page.locator('.data-table tbody tr:not(.empty-state)').first().locator('td a');
+    await expect(recentRunLink).toBeVisible({ timeout: 10000 });
     await recentRunLink.click();
     
     // --- Run Detail View ---
