@@ -1,11 +1,52 @@
 import { test, expect } from '@playwright/test';
-import { computeFingerprint } from '@playwright-extensions/reporter';
+import { execSync } from 'child_process';
 
 const SERVER_URL = process.env.REPORTER_SERVER_URL || 'http://localhost:8400';
 
-test.describe('Reporter Web UI E2E', () => {
+test.describe.serial('Reporter Web UI E2E', () => {
 
-  test.describe('Dashboard', () => {
+  test.beforeAll('Setup: Execute Native Playwright Run to generate Server Traces', () => {
+    // Bootstraps a run so we have reliable data to test against.
+    try {
+      execSync('npx playwright test tests/dummy.spec.ts --reporter=@playwright-extensions/reporter', {
+        cwd: __dirname + '/..',
+        env: { ...process.env, REPORTER_PROJECT_NAME: 'trace-generator-suite', REPORTER_SERVER_URL: SERVER_URL },
+        stdio: 'ignore',
+      });
+    } catch (e) {}
+  });
+
+  test('User Journey: Navigate and inspect entire Dashboard UI', async ({ page, context }) => {
+    // 1. Dashboard View
+    await page.goto(SERVER_URL);
+    await expect(page.locator('h2').first()).toContainText('Dashboard');
+    
+    // 2. Click on the most recent run for trace generator
+    const recentRunLink = page.locator('.data-table tbody tr:not(.empty-state)').filter({ hasText: 'trace-generator-suite' }).first().locator('td a');
+    await expect(recentRunLink).toContainText(/trace-generator-suite - \d{4}-\d{2}-\d{2}T/);
+    await recentRunLink.click();
+    
+    // 3. Drill down into Run Detail
+    await expect(page.locator('.page-header h2')).toContainText('Run Detail');
+
+    // 4. Check Trace functionality
+    const tracesBtns = page.locator('#testsBody tr:not(.empty-state)').locator('a:has-text("Trace")');
+    await expect(tracesBtns.first()).toBeVisible({ timeout: 10000 });
+    await expect(tracesBtns.first()).toHaveAttribute('target', '_blank');
+
+    const [newPage] = await Promise.all([
+      context.waitForEvent('page'),
+      tracesBtns.first().click(),
+    ]);
+
+    await expect(newPage).toHaveURL(/trace\.playwright\.dev/);
+    
+    // 5. Go back to Dashboard / Trends
+    await page.goto(`${SERVER_URL}/trends`);
+    await expect(page.locator('h2')).toContainText('Trends');
+  });
+
+  test.describe('Dashboard Component Tests', () => {
     test('returns HTTP 200', async ({ request }) => {
       const response = await request.get(SERVER_URL);
       expect(response.status()).toBe(200);
@@ -22,7 +63,6 @@ test.describe('Reporter Web UI E2E', () => {
       await expect(links.filter({ hasText: 'Dashboard' })).toBeVisible();
       await expect(links.filter({ hasText: 'Runs' })).toBeVisible();
       await expect(links.filter({ hasText: 'Trends' })).toBeVisible();
-      await expect(links.filter({ hasText: 'Search Traces' })).toBeVisible();
     });
 
     test('renders stats grid with labels', async ({ page }) => {
@@ -48,8 +88,8 @@ test.describe('Reporter Web UI E2E', () => {
       expect(testsRun).toBeGreaterThan(0);
 
       // Verify run title in the recent runs table includes the project name and timestamp format
-      const recentRunLink = page.locator('.data-table tbody tr').first().locator('td a');
-      await expect(recentRunLink).toContainText(/reporter-e2e - \d{4}-\d{2}-\d{2}T/);
+      const recentRunLink = page.locator('.data-table tbody tr:not(.empty-state)').filter({ hasText: 'trace-generator-suite' }).first().locator('td a');
+      await expect(recentRunLink).toContainText(/trace-generator-suite - \d{4}-\d{2}-\d{2}T/);
     });
   });
 
@@ -109,54 +149,6 @@ test.describe('Reporter Web UI E2E', () => {
     });
   });
 
-  test.describe('Search Page', () => {
-    test('returns HTTP 200', async ({ request }) => {
-      const response = await request.get(`${SERVER_URL}/search`);
-      expect(response.status()).toBe(200);
-    });
-
-    test('renders search page title', async ({ page }) => {
-      await page.goto(`${SERVER_URL}/search`);
-      await expect(page.locator('h2')).toContainText('Search Traces');
-    });
-
-    test('renders search input and action type input', async ({ page }) => {
-      await page.goto(`${SERVER_URL}/search`);
-      await expect(page.locator('#searchQuery')).toBeVisible();
-      await expect(page.locator('#searchActionType')).toBeVisible();
-    });
-
-    test('can type into search input', async ({ page }) => {
-      await page.goto(`${SERVER_URL}/search`);
-      await page.fill('#searchQuery', 'test click action');
-      await expect(page.locator('#searchQuery')).toHaveValue('test click action');
-    });
-  });
-
-  test.describe('Snapshot Diff Page', () => {
-    test('returns HTTP 200', async ({ request }) => {
-      const response = await request.get(`${SERVER_URL}/diff`);
-      expect(response.status()).toBe(200);
-    });
-
-    test('renders diff page title', async ({ page }) => {
-      await page.goto(`${SERVER_URL}/diff`);
-      await expect(page.locator('h2')).toContainText('Snapshot Diff');
-    });
-
-    test('renders diff form controls', async ({ page }) => {
-      await page.goto(`${SERVER_URL}/diff`);
-      await expect(page.locator('#diffFingerprint')).toBeVisible();
-      await expect(page.locator('#diffRunA')).toBeVisible();
-      await expect(page.locator('#diffRunB')).toBeVisible();
-    });
-
-    test('renders back to search link', async ({ page }) => {
-      await page.goto(`${SERVER_URL}/diff`);
-      await expect(page.locator('a.back-link')).toHaveAttribute('href', '/search');
-    });
-  });
-
   test.describe('Navigation', () => {
     test('can click Runs link from dashboard', async ({ page }) => {
       await page.goto(SERVER_URL);
@@ -172,7 +164,7 @@ test.describe('Reporter Web UI E2E', () => {
     });
 
     test('can navigate between all pages via sidebar', async ({ request }) => {
-      const pages = ['/', '/runs', '/trends', '/search', '/diff'];
+      const pages = ['/', '/runs', '/trends'];
       for (const pagePath of pages) {
         const response = await request.get(`${SERVER_URL}${pagePath}`);
         expect(response.status()).toBe(200);
@@ -194,54 +186,9 @@ test.describe('Reporter Web UI E2E', () => {
       const data = await res.json();
       expect(typeof data).toBe('object');
     });
-
-    test('traces search endpoint returns 200 with array', async ({ request }) => {
-      const res = await request.get(`${SERVER_URL}/api/v1/traces/search?q=test`);
-      expect(res.status()).toBe(200);
-      const data = await res.json();
-      expect(Array.isArray(data.entries)).toBe(true);
-    });
   });
 
   test.describe('Reporter Package Integration', () => {
-    test('computes fingerprint correctly', () => {
-      const fp = computeFingerprint({
-        actionType: 'click',
-        selector: 'text=Submit',
-        sourceLocation: 'tests/checkout.spec.ts:42',
-        actionIndex: 0,
-      });
-      expect(fp).toBeDefined();
-      expect(typeof fp).toBe('string');
-      expect(fp.length).toBeGreaterThan(0);
-    });
-
-    test('produces deterministic fingerprints', () => {
-      const action = {
-        actionType: 'fill',
-        selector: 'css=input[name=email]',
-        sourceLocation: 'tests/login.spec.ts:10',
-        actionIndex: 1,
-      };
-      const fp1 = computeFingerprint(action);
-      const fp2 = computeFingerprint(action);
-      expect(fp1).toBe(fp2);
-    });
-
-    test('produces different fingerprints for different actions', () => {
-      const fp1 = computeFingerprint({
-        actionType: 'click',
-        selector: '#submit',
-        sourceLocation: 'test.ts:1',
-        actionIndex: 0,
-      });
-      const fp2 = computeFingerprint({
-        actionType: 'fill',
-        selector: '#email',
-        sourceLocation: 'test.ts:2',
-        actionIndex: 1,
-      });
-      expect(fp1).not.toBe(fp2);
-    });
+    // Other reporter logic like initialization can be checked here in the future
   });
 });

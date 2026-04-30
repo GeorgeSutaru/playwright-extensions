@@ -197,8 +197,10 @@ function renderTests(tests) {
         <td>${t.durationMs ? t.durationMs + 'ms' : '-'}</td>
         <td>${t.retryNum || 0}</td>
         <td>
-          <a href="/test/${t.id}" class="btn btn-small">History</a>
-          <a href="/trace/${t.id}" class="btn btn-small">Trace</a>
+          <a href="/test/${t.id}" class="btn btn-small btn-primary">History</a>
+          ${t.hasTrace ? `<a href="/trace/${t.id}" class="btn btn-small btn-secondary trace-link" target="_blank">Trace</a>` : ''}
+        </td>
+          ${t.hasTrace ? `<a href="/trace/${t.id}" target="_blank" class="btn btn-small btn-primary">Trace</a>` : ''}
         </td>
       </tr>
     `
@@ -232,7 +234,9 @@ async function loadTestHistory(testId) {
         <td>${t.durationMs ? t.durationMs + 'ms' : '-'}</td>
         <td>${t.retryNum || 0}</td>
         <td>${t.errorText ? `<span class="error-text" title="${escapeHtml(t.errorText)}">${escapeHtml(t.errorText.slice(0, 80))}</span>` : '-'}</td>
-        <td><a href="/trace/${t.id}" class="btn btn-small">Trace</a></td>
+        <td>
+          ${t.hasTrace ? `<a href="/trace/${t.id}" target="_blank" class="btn btn-small btn-primary">Trace</a>` : '-'}
+        </td>
       </tr>
     `
     )
@@ -498,9 +502,6 @@ document.addEventListener('DOMContentLoaded', () => {
   } else if (path.startsWith('/test/')) {
     const testId = path.split('/')[2];
     loadTestHistory(testId);
-  } else if (path.startsWith('/trace/')) {
-    const testId = path.split('/')[2];
-    loadTraceViewer(testId);
   } else if (path === '/trends') {
     loadTrends();
   }
