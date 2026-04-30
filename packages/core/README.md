@@ -16,35 +16,21 @@ import { LocatorRace } from '@playwright-extensions/core';
 
 ## Extensions
 
-### `page.raceLocator()` - Race Multiple Locators via Page Fixture
+### `LocatorRace.race()` - Race Multiple Locators
 
-A page fixture extension that polls locator visibility in a loop until the first element becomes visible. Enforces strict mode: if multiple locators are visible in the same check, it throws.
-
-#### Prerequisites
-
-Locators must be extended with a `getSelector()` method:
-
-```typescript
-import { RaceLocatorObject } from '@playwright-extensions/core';
-
-function makeRaceLocator(loc: any, selector: string): RaceLocatorObject {
-  return Object.assign(loc, { getSelector: () => selector });
-}
-```
+Polls locator visibility in a loop until the first element becomes visible. Enforces strict mode: if multiple locators are visible in the same check, it throws.
 
 #### Basic Usage
 
 ```typescript
-import { test, expect } from '@playwright-extensions/core';
+import { LocatorRace } from '@playwright-extensions/core';
 
-test('race locators', async ({ page }) => {
-  const locA = makeRaceLocator(page.locator('#a'), '#a');
-  const locB = makeRaceLocator(page.locator('#b'), '#b');
+const winner = await LocatorRace.race([
+  page.locator('#a'),
+  page.locator('#b'),
+]);
 
-  // Returns the first visible locator
-  const winner = await page.raceLocator([locA, locB]);
-  await winner.click();
-});
+await winner.click();
 ```
 
 #### Strict Mode
@@ -52,30 +38,48 @@ test('race locators', async ({ page }) => {
 Throws if multiple locators are visible simultaneously:
 
 ```typescript
-const loc1 = makeRaceLocator(page.locator('#first'), '#first');
-const loc2 = makeRaceLocator(page.locator('#second'), '#second');
-
+const winner = await LocatorRace.race([
+  page.locator('#first'),
+  page.locator('#second'),
+]);
 // Throws: "Strict mode violation: multiple locators found visible..."
-const winner = await page.raceLocator([loc1, loc2]);
 ```
 
 #### Options
 
 ```typescript
-const winner = await page.raceLocator([locA, locB], {
-  timeout: 5000,        // Max wait time (default: 0 = no timeout)
-  pollInterval: 100,    // Check interval in ms (default: 100)
+const winner = await LocatorRace.race(
+  [page.locator('#a'), page.locator('#b')],
+  {
+    timeout: 5000,        // Max wait time (default: 0 = no timeout)
+    pollInterval: 100,    // Check interval in ms (default: 100)
+  }
+);
+```
+
+### `page.raceLocator()` - Race via Page Fixture
+
+A page fixture extension that delegates to `LocatorRace.race()`. Use the fixture from `@playwright-extensions/core` to get `page.raceLocator()`:
+
+```typescript
+import { test, expect } from '@playwright-extensions/core';
+
+test('race locators', async ({ page }) => {
+  const winner = await page.raceLocator([
+    page.locator('#a'),
+    page.locator('#b'),
+  ]);
+  await winner.click();
 });
 ```
 
-#### Using Locally (without fixture)
-
-You can also use `LocatorRace.race()` directly:
+Options work the same way:
 
 ```typescript
-import { LocatorRace } from '@playwright-extensions/core';
-
-const winner = await LocatorRace.race([locA, locB]);
+const winner = await page.raceLocator(
+  [page.locator('#a'), page.locator('#b')],
+  { timeout: 5000, pollInterval: 100 }
+);
 ```
 
 ## Development

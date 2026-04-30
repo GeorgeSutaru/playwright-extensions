@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "8401:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=reporter
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  reporter:
+    build:
+      context: ../..
+      dockerfile: packages/reporter-server/Dockerfile
+    ports:
+      - "8400:8400"
+    environment:
+      - REPORTER_PORT=8400
+      - REPORTER_DB_HOST=postgres
+      - REPORTER_DB_PORT=5432
+      - REPORTER_DB_USER=postgres
+      - REPORTER_DB_NAME=reporter
+      - REPORTER_ARTIFACTS_DIR=/data/artifacts
+      - REPORTER_SNAPSHOTS_DIR=/data/snapshots
+      - REPORTER_DB_DIR=/data/db
+      - REPORTER_LOG_LEVEL=info
+    volumes:
+      - reporter-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  reporter-data:

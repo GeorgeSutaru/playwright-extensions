@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: [
     ['@playwright-extensions/reporter', {
       serverUrl: process.env.REPORTER_SERVER_URL || 'http://localhost:8400',
-      projectName: 'core',
+      projectName: 'reporter-e2e',
     }]
   ],
   use: {

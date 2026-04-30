@@ -11,3 +11,7 @@ playwright-report/
 test-results/
 *.sock
 *.tsbuildinfo
+# drizzle/ (Migrations should be tracked)
+data/
+.playwright-reporter/
+

@@ -260,7 +260,13 @@ export async function run(): Promise<void> {
   }
 }
 
-run().catch((e: Error) => {
-  console.error(e.message);
-  process.exit(1);
-});
+const isEntry = require.main === module
+  || process.argv[1]?.endsWith('extended-playwright-cli.js')
+  || process.argv[1]?.endsWith('program.js');
+
+if (isEntry) {
+  run().catch((e: Error) => {
+    console.error(e.message);
+    process.exit(1);
+  });
+}

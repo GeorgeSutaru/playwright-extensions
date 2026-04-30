@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title || 'Reporter Dashboard' %></title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="logo">
+      <h1>Reporter</h1>
+    </div>
+    <ul class="nav-links">
+      <li><a href="/" class="<%= currentView === 'dashboard' ? 'active' : '' %>">Dashboard</a></li>
+      <li><a href="/runs" class="<%= currentView === 'runs' ? 'active' : '' %>">Runs</a></li>
+      <li><a href="/trends" class="<%= currentView === 'trends' ? 'active' : '' %>">Trends</a></li>
+      <li><a href="/search" class="<%= currentView === 'search' ? 'active' : '' %>">Search Traces</a></li>
+    </ul>
+  </nav>
+  <main class="content">
+    <%- body %>
+  </main>
+  <script src="/static/app.js"></script>
+  <script>
+    window.API_BASE = '/api/v1';
+  </script>
+</body>
+</html>
