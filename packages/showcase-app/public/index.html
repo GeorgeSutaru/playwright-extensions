@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playwright Extensions Showcase</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Playwright Extensions Showcase</h1>
+    
+    <div class="action-card">
+      <h2>LocatorRace Extension Demo</h2>
+      <p>Click "Process" to simulate a slow backend operation. The API randomly succeeds or fails, showing different modals.</p>
+      <button id="process-btn">Process</button>
+      <button id="process-strict-fail-btn">Trigger Strict Race Failure</button>
+      
+      <div id="loading-spinner" class="hidden">Processing... ⏳</div>
+      
+      <div id="outcome-container"></div>
+    </div>
+
+    <div class="action-card">
+      <h2>Interceptors Demo</h2>
+      <p>Deliberately trigger errors to demonstrate auto-interceptors.</p>
+      
+      <button id="trigger-console-err">Trigger Console Error</button>
+      <button id="trigger-network-included">Trigger Network Soft-Fail (Included Wildcard)</button>
+      <button id="trigger-network-excluded">Trigger Network Ignored (Excluded Wildcard)</button>
+      <button id="trigger-page-err">Trigger Page Exception</button>
+      
+      <p id="execution-audit" class="hidden">Extra action executed!</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

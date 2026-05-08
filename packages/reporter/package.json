@@ -1,6 +1,6 @@
 {
   "name": "@playwright-extensions/reporter",
-  "version": "0.1.1",
+  "version": "0.0.1",
   "description": "Extended Playwright reporter with trace indexing and snapshot fingerprinting",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

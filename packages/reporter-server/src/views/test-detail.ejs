@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title || 'Reporter Dashboard' %></title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="logo">
+      <h1>Reporter</h1>
+    </div>
+    <ul class="nav-links">
+      <li><a href="/" class="<%= currentView === 'dashboard' ? 'active' : '' %>">Dashboard</a></li>
+      <li><a href="/runs" class="<%= currentView === 'runs' ? 'active' : '' %>">Runs</a></li>
+      <li><a href="/trends" class="<%= currentView === 'trends' ? 'active' : '' %>">Trends</a></li>
+    </ul>
+  </nav>
+  <main class="content">
+    <div class="page-header">
+      <a href="/runs/<%= runId %>" class="back-link">&larr; Back to Run</a>
+      <h2>Test Report</h2>
+    </div>
+
+    <div class="test-info" id="testDetailInfo"></div>
+
+    <div class="section details-section">
+      <h3>Test Steps</h3>
+      <div id="testSteps" class="test-steps-container">
+        <p class="empty-state">Loading steps...</p>
+      </div>
+    </div>
+    
+    <div class="section artifacts-section">
+      <h3>Artifacts</h3>
+      <div id="testArtifacts" class="test-artifacts-container">
+        <p class="empty-state">Loading artifacts...</p>
+      </div>
+    </div>
+
+    <div class="section trace-section">
+      <h3>Trace Viewer</h3>
+      <div id="testTraceContainer" class="test-trace-container" style="width: 100%; height: 100%; min-height: 800px; padding-bottom: 40px;">
+        <p class="empty-state">Loading trace...</p>
+      </div>
+    </div>
+  </main>
+  <script src="/static/app.js"></script>
+  <script>
+    window.API_BASE = '/api/v1';
+    window.TEST_ID = '<%= testId %>';
+    window.RUN_ID = '<%= runId %>';
+  </script>
+</body>
+</html>

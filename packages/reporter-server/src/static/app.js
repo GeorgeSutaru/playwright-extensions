@@ -204,14 +204,13 @@ function renderTests(tests) {
     .map(
       (t) => `
       <tr>
-        <td>${t.title}</td>
-        <td><code>${t.file}</code>${t.line ? `:${t.line}` : ''}</td>
+        <td><a href="/test/${t.id}/details">${escapeHtml(t.title)}</a></td>
+        <td><code>${escapeHtml(t.file)}</code>${t.line ? `:${t.line}` : ''}</td>
         <td>${statusBadge(t.status)}</td>
         <td>${t.durationMs ? t.durationMs + 'ms' : '-'}</td>
         <td>${t.retryNum || 0}</td>
         <td>
           <a href="/test/${t.id}" class="btn btn-small btn-primary">History</a>
-          ${t.hasTrace ? `<a href="/trace/${t.id}" class="btn btn-small btn-secondary trace-link" target="_blank">Trace</a>` : ''}
         </td>
       </tr>
     `
@@ -220,6 +219,80 @@ function renderTests(tests) {
 }
 
 // Test History
+async function loadTestDetail(testId) {
+  const data = await api(`/tests/${testId}/history`);
+
+  const info = document.getElementById('testDetailInfo');
+  if (info && data.test) {
+    info.innerHTML = `
+      <div class="run-meta">
+        <div><span>Test:</span> <strong>${data.test.title}</strong></div>
+        <div><span>File:</span> <strong>${data.test.file}:${data.test.line || '?'}</strong></div>
+        <div><span>Status:</span> ${statusBadge(data.test.status)}</div>
+        <div><span>Duration:</span> <strong>${data.test.durationMs ? data.test.durationMs + 'ms' : '-'}</strong></div>
+      </div>
+    `;
+    
+    // Load Steps
+    const stepsContainer = document.getElementById('testSteps');
+    if (stepsContainer) {
+      if (data.test.metadata && data.test.metadata.steps && data.test.metadata.steps.length > 0) {
+        stepsContainer.innerHTML = data.test.metadata.steps.map(s => `
+          <div class="trace-entry ${s.error ? 'has-error' : ''}">
+            <div class="trace-entry-header">
+              <span class="trace-entry-action">${escapeHtml(s.title || 'step')}</span>
+              <span class="trace-entry-duration">${s.durationMs ? s.durationMs + 'ms' : '-'}</span>
+            </div>
+            ${s.error ? `<div class="error-text" style="margin-top:4px;">${escapeHtml(s.error)}</div>` : ''}
+          </div>
+        `).join('');
+      } else {
+        stepsContainer.innerHTML = '<p class="empty-state">No steps recorded.</p>';
+      }
+    }
+
+    // Load Artifacts
+    if (data.test.runId) {
+      api(`/runs/${data.test.runId}/tests/${testId}/artifacts`).then(artData => {
+        const artifactsContainer = document.getElementById('testArtifacts');
+        const traceContainer = document.getElementById('testTraceContainer');
+        
+        if (artData.artifacts) {
+          // Render Trace Viewer inline
+          const traceArtifact = artData.artifacts.find(a => a.type === 'trace');
+          if (traceContainer) {
+            if (traceArtifact) {
+              const traceUrl = new URL(`/api/v1/artifacts/${traceArtifact.id}/download`, window.location.origin).href;
+              traceContainer.innerHTML = `<iframe src="https://trace.playwright.dev/?trace=${encodeURIComponent(traceUrl)}" style="width: 100%; height: 800px; border: 1px solid #ccc; border-radius: 4px;"></iframe>`;
+            } else {
+              traceContainer.innerHTML = '<p class="empty-state">No trace available.</p>';
+            }
+          }
+
+          // Render all artifacts (downloads and visuals)
+          if (artifactsContainer) {
+            const artifacts = artData.artifacts;
+            if (artifacts.length === 0) {
+              artifactsContainer.innerHTML = '<p class="empty-state">No visible artifacts found.</p>';
+            } else {
+              artifactsContainer.innerHTML = '<div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:8px;">' + artifacts.map(a => {
+                const url = `/api/v1/artifacts/${a.id}/download`;
+                let content = '';
+                if (a.type === 'video') {
+                  content = `<video src="${url}" controls style="max-width:400px; border:1px solid #ccc; display:block; margin-bottom:8px;"></video>`;
+                } else if (a.type === 'screenshot') {
+                  content = `<a href="${url}" target="_blank"><img src="${url}" alt="Screenshot" style="max-width:400px; border:1px solid #ccc; display:block; margin-bottom:8px;"/></a>`;
+                }
+                return `<div class="artifact-box"><p style="margin-bottom:8px; text-transform:capitalize;"><strong>${a.type}</strong></p>${content}<a href="${url}" target="_blank" class="btn btn-small btn-primary" download>Download ${a.type}</a></div>`;
+              }).join('') + '</div>';
+            }
+          }
+        }
+      }).catch(e => console.error('Failed to load artifacts:', e));
+    }
+  }
+}
+
 async function loadTestHistory(testId) {
   const data = await api(`/tests/${testId}/history`);
 
@@ -246,7 +319,7 @@ async function loadTestHistory(testId) {
         <td>${t.retryNum || 0}</td>
         <td>${t.errorText ? `<span class="error-text" title="${escapeHtml(t.errorText)}">${escapeHtml(t.errorText.slice(0, 80))}</span>` : '-'}</td>
         <td>
-          ${t.hasTrace ? `<a href="/trace/${t.id}" target="_blank" class="btn btn-small btn-primary">Trace</a>` : '-'}
+          <a href="/test/${t.id}/details" class="btn btn-small btn-primary">Details</a>
         </td>
       </tr>
     `
@@ -510,6 +583,9 @@ document.addEventListener('DOMContentLoaded', () => {
   } else if (path.startsWith('/runs/')) {
     const runId = path.split('/')[2];
     loadRunDetail(runId);
+  } else if (path.match(/^\/test\/[^\/]+\/details$/)) {
+    const testId = path.split('/')[2];
+    loadTestDetail(testId);
   } else if (path.startsWith('/test/')) {
     const testId = path.split('/')[2];
     loadTestHistory(testId);

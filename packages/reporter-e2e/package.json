@@ -1,6 +1,6 @@
 {
   "name": "@playwright-extensions/reporter-e2e",
-  "version": "0.1.1",
+  "version": "0.0.1",
   "description": "E2E tests for the extended Playwright reporter web UI",
   "private": true,
   "scripts": {

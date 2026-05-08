@@ -99,6 +99,17 @@ export async function createApp(): Promise<FastifyInstance> {
     });
   });
 
+  app.get('/test/:id/details', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const runId = (request.query as any).runId || '';
+    return reply.view('test-detail.ejs', {
+      title: 'Test Detail',
+      currentView: 'runs',
+      testId: id,
+      runId,
+    });
+  });
+
   app.get('/test/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     return reply.view('test-history.ejs', {

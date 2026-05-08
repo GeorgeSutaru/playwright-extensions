@@ -75,7 +75,7 @@ export class ExtendedReporter implements Reporter {
 
     const testData: Record<string, unknown> = {
       title: test.titlePath().slice(1).join(' >> '),
-      file: test.titlePath().slice(-2)[0] || '',
+      file: test.location?.file ? path.basename(test.location.file) : test.titlePath()[1] || '',
       line: test.location?.line,
       status,
       durationMs: duration,
@@ -86,6 +86,13 @@ export class ExtendedReporter implements Reporter {
         annotations: test.annotations,
         tags: test.tags,
         project: '',
+        steps: result.steps.map(s => ({
+          title: s.title,
+          category: s.category,
+          startTime: s.startTime.toISOString(),
+          durationMs: s.duration,
+          error: s.error?.message
+        })),
       },
     };
 

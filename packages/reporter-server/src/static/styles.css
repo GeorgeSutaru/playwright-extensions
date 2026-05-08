@@ -493,3 +493,90 @@ canvas {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #111827;
+    color: #f9fafb;
+  }
+  
+  .sidebar {
+    background: #1f2937;
+    border-right: 1px solid #374151;
+  }
+  
+  .sidebar .logo h1 {
+    border-bottom: 1px solid #374151;
+  }
+  
+  .nav-links li a:hover,
+  .nav-links li a.active {
+    background: #374151;
+    color: #fff;
+  }
+  
+  .stat-card, .chart-container, .section, .diff-config, .diff-result {
+    background: #1f2937;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+  
+  .stat-value, .page-header h2, .chart-container h3, .section h3, .diff-panel h4, .trace-entry-action, .run-meta strong {
+    color: #f9fafb;
+  }
+  
+  .data-table th {
+    border-bottom: 2px solid #374151;
+    color: #9ca3af;
+  }
+  
+  .data-table td {
+    border-bottom: 1px solid #374151;
+  }
+  
+  .data-table tr:hover, .trace-entry:hover {
+    background: #374151;
+  }
+  
+  .run-meta {
+    background: #1f2937;
+    border: 1px solid #374151;
+  }
+  
+  .run-meta span {
+    color: #9ca3af;
+  }
+  
+  .search-input, .filter-input, .filter-select, .form-input {
+    background: #111827;
+    border: 1px solid #4b5563;
+    color: #f9fafb;
+  }
+  
+  .pagination button, .tab-btn {
+    background: #1f2937;
+    border: 1px solid #4b5563;
+    color: #f9fafb;
+  }
+  
+  .pagination button:hover {
+    background: #374151;
+  }
+  
+  .snapshot-frame, .snapshot-viewer {
+    background: #111827;
+    border: 1px solid #374151;
+  }
+  
+  .diff-meta {
+    background: #1e3a8a;
+    color: #bfdbfe;
+  }
+  
+  .trace-timeline {
+    border-left: 2px solid #4b5563;
+  }
+  
+  .trace-entry-details, .trace-entry-duration, .stat-label {
+    color: #9ca3af;
+  }
+}
