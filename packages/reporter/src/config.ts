@@ -5,7 +5,6 @@ export interface ReporterConfig {
   runTitle?: string;
   artifacts?: ('video' | 'screenshot' | 'trace')[];
   indexTraces?: boolean;
-  fingerprintActions?: boolean;
   fallbackDir?: string;
 }
 
@@ -13,6 +12,5 @@ export const DefaultReporterConfig: Required<Omit<ReporterConfig, 'apiKey' | 'pr
   serverUrl: 'http://localhost:8400',
   artifacts: ['video', 'screenshot', 'trace'],
   indexTraces: true,
-  fingerprintActions: true,
   fallbackDir: './.playwright-reporter',
 };

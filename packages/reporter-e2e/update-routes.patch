@@ -1,0 +1,38 @@
+--- packages/reporter-server/src/routes/runs.ts
++++ packages/reporter-server/src/routes/runs.ts
+@@ -2,5 +2,5 @@
+-import { eq, desc, asc, and, like, gte, lte, count } from 'drizzle-orm';
++import { eq, desc, asc, and, like, gte, lte, count, inArray } from 'drizzle-orm';
+ import { getDatabase } from '../db.js';
+ import * as schema from '../schema.js';
+-import { runs, tests } from '../schema.js';
++import { runs, tests, artifacts } from '../schema.js';
+ 
+@@ -82,2 +82,10 @@
+ 
++        const testsWithTraces = await db
++          .select({ testId: artifacts.testId })
++          .from(artifacts)
++          .where(and(eq(artifacts.type, 'trace'), inArray(artifacts.testId, testResults.map(t => t.id).concat(['00000000-0000-0000-0000-000000000000']))));
++        
++        const hasTraceSet = new Set(testsWithTraces.map(a => a.testId));
++
+         return {
+           ...run,
+-          tests: testResults,
++          tests: testResults.map(t => ({ ...t, hasTrace: hasTraceSet.has(t.id) })),
+         };
+@@ -122,5 +130,12 @@
+ 
++    const testsWithTraces = await db
++      .select({ testId: artifacts.testId })
++      .from(artifacts)
++      .where(and(eq(artifacts.type, 'trace'), inArray(artifacts.testId, testResults.map(t => t.id).concat(['00000000-0000-0000-0000-000000000000']))));
++    const hasTraceSet = new Set(testsWithTraces.map(a => a.testId));
++    const enrichedTests = testResults.map(t => ({ ...t, hasTrace: hasTraceSet.has(t.id) }));
++
+     reply.send({
+       ...run,
+-      tests: testResults,
++      tests: enrichedTests,
+     });

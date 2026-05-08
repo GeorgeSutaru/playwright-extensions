@@ -1,8 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, desc, asc, and, like, gte, lte, count } from 'drizzle-orm';
+import { eq, desc, asc, and, like, gte, lte, count, inArray } from 'drizzle-orm';
 import { getDatabase } from '../db.js';
 import * as schema from '../schema.js';
-import { runs, tests } from '../schema.js';
+import { runs, tests, artifacts } from '../schema.js';
 
 export async function registerRunsRoutes(app: FastifyInstance): Promise<void> {
   app.post('/api/v1/runs', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -82,9 +82,16 @@ export async function registerRunsRoutes(app: FastifyInstance): Promise<void> {
           .where(eq(tests.runId, run.id))
           .limit(1000);
 
+        const testIds = testResults.map(t => t.id).concat(['00000000-0000-0000-0000-000000000000']);
+        const traceArtifacts = await db
+          .select({ testId: artifacts.testId })
+          .from(artifacts)
+          .where(and(inArray(artifacts.testId, testIds), eq(artifacts.type, 'trace')));
+        const hasTraceSet = new Set(traceArtifacts.map(a => a.testId));
+
         return {
           ...run,
-          tests: testResults,
+          tests: testResults.map(t => ({ ...t, hasTrace: hasTraceSet.has(t.id) })),
         };
       })
     );
@@ -121,9 +128,33 @@ export async function registerRunsRoutes(app: FastifyInstance): Promise<void> {
       .where(eq(tests.runId, id))
       .orderBy(asc(tests.title));
 
+    const testIds = testResults.map(t => t.id).concat(['00000000-0000-0000-0000-000000000000']);
+    const traceArtifacts = await db
+      .select({ testId: artifacts.testId })
+      .from(artifacts)
+      .where(and(inArray(artifacts.testId, testIds), eq(artifacts.type, 'trace')));
+    const hasTraceSet = new Set(traceArtifacts.map(a => a.testId));
+
     reply.send({
       ...run,
-      tests: testResults,
+      tests: testResults.map(t => ({ ...t, hasTrace: hasTraceSet.has(t.id) })),
     });
+  });
+
+  app.delete('/api/v1/runs/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    const db = getDatabase();
+    const { id } = request.params as { id: string };
+
+    const [deleted] = await db
+      .delete(runs)
+      .where(eq(runs.id, id))
+      .returning();
+
+    if (!deleted) {
+      reply.code(404).send({ error: 'Run not found' });
+      return;
+    }
+
+    reply.send({ success: true, id: deleted.id });
   });
 }

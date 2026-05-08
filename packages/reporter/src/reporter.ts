@@ -1,7 +1,8 @@
 import { Reporter, FullConfig, FullResult, TestError } from '@playwright/test/reporter';
 import { ReporterConfig, DefaultReporterConfig } from './config.js';
 import { ReporterClient } from './client.js';
-import { computeFingerprint, ActionFingerprint } from './fingerprint.js';
+import fs from 'fs';
+import path from 'path';
 
 interface TestContext {
   testId: string;
@@ -16,7 +17,10 @@ export class ExtendedReporter implements Reporter {
   private config: Required<Omit<ReporterConfig, 'apiKey' | 'projectName' | 'runTitle'>> & Pick<ReporterConfig, 'projectName' | 'runTitle'>;
   private client: ReporterClient;
   private runId: string | null = null;
+  private runPromise: Promise<string> | null = null;
   private errors: TestError[] = [];
+  private pendingUploads: Array<{testId: string, name: string, fileName: string, filePath: string}> = [];
+  private pendingRequests: Promise<any>[] = [];
 
   constructor(userConfig?: ReporterConfig) {
     this.config = {
@@ -41,9 +45,12 @@ export class ExtendedReporter implements Reporter {
       },
     };
 
-    this.client.createRun(metadata).then((id) => {
+    this.runPromise = this.client.createRun(metadata).then((id) => {
       this.runId = id;
+      return id;
     });
+
+    this.pendingRequests.push(this.runPromise);
   }
 
   onTestBegin(test: import('@playwright/test/reporter').TestCase, result: import('@playwright/test/reporter').TestResult): void {
@@ -57,7 +64,7 @@ export class ExtendedReporter implements Reporter {
   }
 
   onTestEnd(test: import('@playwright/test/reporter').TestCase, result: import('@playwright/test/reporter').TestResult): void {
-    if (!this.runId) return;
+    if (!this.runPromise) return;
 
     const key = this.getTestKey(test, result);
     const ctx = testContexts.get(key);
@@ -82,20 +89,33 @@ export class ExtendedReporter implements Reporter {
       },
     };
 
-    this.client.recordTest(this.runId!, testData).then((testId) => {
-      ctx.testId = testId;
+    const recordPromise = this.runPromise.then((runId) => {
+      return this.client.recordTest(runId, testData).then((testId) => {
+        ctx.testId = testId;
 
-      for (const attachment of result.attachments) {
-        if (attachment.body && this.config.artifacts.includes(attachment.name as 'video' | 'screenshot' | 'trace')) {
-          const buffer = Buffer.from(attachment.body);
-          this.client.uploadArtifact(this.runId!, testId, attachment.name, attachment.path || `${attachment.name}.${this.getExtension(attachment.contentType || '')}`, buffer);
+        const uploadPromises: Promise<void>[] = [];
+        for (const attachment of result.attachments) {
+          if (this.config.artifacts.includes(attachment.name as 'video' | 'screenshot' | 'trace')) {
+            const fileName = attachment.path ? path.basename(attachment.path) : `${attachment.name}.${this.getExtension(attachment.contentType || '')}`;
+            
+            if (attachment.body) {
+              const buffer = Buffer.from(attachment.body);
+              uploadPromises.push(this.client.uploadArtifact(runId, testId, attachment.name, fileName, buffer));
+            } else if (attachment.path) {
+              this.pendingUploads.push({
+                testId,
+                name: attachment.name,
+                fileName,
+                filePath: attachment.path
+              });
+            }
+          }
         }
-      }
-
-      if (this.config.indexTraces && ctx.actions.length > 0) {
-        this.client.uploadTrace(this.runId!, testId, ctx.actions);
-      }
+        return Promise.all(uploadPromises);
+      });
     });
+
+    this.pendingRequests.push(recordPromise);
 
     testContexts.delete(key);
   }
@@ -104,14 +124,35 @@ export class ExtendedReporter implements Reporter {
     this.errors.push(error);
   }
 
-  onEnd(result: FullResult): void {
+  async onEnd(result: FullResult): Promise<void> {
+    // Wait for all pending request promises first so that DB objects exist before artifact uploads run
+    await Promise.all(this.pendingRequests);
+
     // Finalize run
     if (this.errors.length > 0) {
       console.log(`[reporter] ${this.errors.length} error(s) during test run`);
     }
+
+    if (this.runId && this.pendingUploads.length > 0) {
+      // Upload all queued file-based artifacts that are now safely flushed to disk.
+      for (const upload of this.pendingUploads) {
+        if (fs.existsSync(upload.filePath)) {
+          try {
+            const buffer = fs.readFileSync(upload.filePath);
+            console.log(`[reporter] Native Trace Uploading: ${upload.fileName} from ${upload.filePath}`);
+            await this.client.uploadArtifact(this.runId, upload.testId, upload.name, upload.fileName, buffer);
+            console.log(`[reporter] Native Trace Completed: ${upload.fileName}`);
+          } catch(e) {
+            console.error(`[reporter] Failed trace upload for ${upload.fileName}:`, e);
+          }
+        } else {
+          console.error(`[reporter] Pending artifact NOT FOUND on disk! ${upload.filePath}`);
+        }
+      }
+    }
   }
 
-  recordAction(action: ActionFingerprint): void {
+  recordAction(action: any): void {
     // Called from extended fixtures to record actions
   }
 

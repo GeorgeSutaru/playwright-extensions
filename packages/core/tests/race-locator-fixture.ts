@@ -1,4 +1,4 @@
-import { test as base } from '@playwright/test';
+import { test as base, expect } from '../src/index';
 import { LocatorRace, LocatorRaceOptions } from '../src/extensions/locator-race';
 import type { Page, Locator } from '@playwright/test';
 
@@ -18,4 +18,4 @@ export const test = base.extend<{ page: RacePage }>({
   },
 });
 
-export { expect } from '@playwright/test';
+export { expect };

@@ -5,7 +5,6 @@ import path from 'path';
 const ARTIFACTS_DIR = process.env.REPORTER_ARTIFACTS_DIR || '/data/artifacts';
 
 export interface TraceAction {
-  fingerprint: string;
   actionType: string;
   selector?: string;
   sourceLocation?: string;
@@ -56,7 +55,7 @@ export async function parseTraceFile(
       );
 
       return {
-        fingerprint: (actionEntry.fingerprint as string) || generateFingerprint(actionEntry),
+        // Action entry
         actionType: (actionEntry.name as string) || (actionEntry.type as string) || 'unknown',
         selector: (actionEntry.locator as string) || (actionEntry.selector as string),
         sourceLocation: (actionEntry.loc as string) || (actionEntry.sourceLocation as string),
@@ -79,16 +78,6 @@ export async function parseTraceFile(
     });
 
   return { actions, rawEntries };
-}
-
-function generateFingerprint(entry: Record<string, unknown>): string {
-  const name = (entry.name as string) || '';
-  const locator = (entry.locator as string) || '';
-  const loc = (entry.loc as string) || '';
-  const apiName = (entry.apiName as string) || '';
-  const raw = `${apiName || name}|${locator}|${loc}`;
-  const { createHash } = require('crypto');
-  return createHash('sha256').update(raw).digest('hex').slice(0, 16);
 }
 
 function computeSnapshotHash(entry: Record<string, unknown> | undefined): string | undefined {

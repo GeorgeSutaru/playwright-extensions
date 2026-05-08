@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
-import { eq, and, like, desc } from 'drizzle-orm';
+import { eq, and, like, desc, inArray } from 'drizzle-orm';
 import { getDatabase } from '../db.js';
-import { tests } from '../schema.js';
+import { tests, artifacts, runs } from '../schema.js';
 
 export async function registerTestsRoutes(app: FastifyInstance): Promise<void> {
   app.post('/api/v1/runs/:runId/tests', async (request, reply) => {
@@ -53,9 +53,16 @@ export async function registerTestsRoutes(app: FastifyInstance): Promise<void> {
       ) as import('drizzle-orm').SQL)
       .orderBy(desc(tests.id));
 
+    const testIds = history.map(t => t.id).concat(['00000000-0000-0000-0000-000000000000']);
+    const traceArtifacts = await db
+      .select({ testId: artifacts.testId })
+      .from(artifacts)
+      .where(and(inArray(artifacts.testId, testIds), eq(artifacts.type, 'trace')));
+    const hasTraceSet = new Set(traceArtifacts.map(a => a.testId));
+
     reply.send({
       test,
-      history,
+      history: history.map(t => ({ ...t, hasTrace: hasTraceSet.has(t.id) })),
     });
   });
 
@@ -113,5 +120,3 @@ async function updateRunStats(db: ReturnType<typeof getDatabase>, runId: string)
 
   return stats;
 }
-
-import { runs } from '../schema.js';

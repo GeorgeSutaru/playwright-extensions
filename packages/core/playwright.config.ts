@@ -1,4 +1,5 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from './src/config';
+import { devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
@@ -12,6 +13,12 @@ export default defineConfig({
       projectName: 'core',
     }]
   ],
+  interceptors: {
+    requests: true,
+    console: true,
+    errors: true,
+    softFail: true,
+  },
   use: {
     trace: 'on-first-retry',
   },
@@ -22,3 +29,4 @@ export default defineConfig({
     },
   ],
 });
+

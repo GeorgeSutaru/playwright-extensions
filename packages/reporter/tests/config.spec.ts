@@ -6,7 +6,6 @@ describe('ReporterConfig', () => {
     expect(DefaultReporterConfig.serverUrl).toBe('http://localhost:8400');
     expect(DefaultReporterConfig.artifacts).toEqual(['video', 'screenshot', 'trace']);
     expect(DefaultReporterConfig.indexTraces).toBe(true);
-    expect(DefaultReporterConfig.fingerprintActions).toBe(true);
     expect(DefaultReporterConfig.fallbackDir).toBe('./.playwright-reporter');
   });
 
@@ -27,7 +26,6 @@ describe('ReporterConfig', () => {
       apiKey: 'secret-key',
       artifacts: ['video', 'screenshot', 'trace'],
       indexTraces: true,
-      fingerprintActions: true,
       fallbackDir: './custom-fallback',
     };
 

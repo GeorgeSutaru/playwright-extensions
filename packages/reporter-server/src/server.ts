@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import fastifyView from '@fastify/view';
+import fastifyCors from '@fastify/cors';
 import ejs from 'ejs';
 import path from 'path';
 import { registerRoutes } from './routes/index.js';
@@ -16,6 +17,11 @@ export async function createApp(): Promise<FastifyInstance> {
     logger: {
       level: process.env.REPORTER_LOG_LEVEL || 'info',
     },
+  });
+
+  await app.register(fastifyCors, {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   });
 
   await app.register(fastifyMultipart, {
@@ -105,32 +111,25 @@ export async function createApp(): Promise<FastifyInstance> {
 
   app.get('/trace/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    return reply.view('trace-viewer.ejs', {
-      title: 'Trace Viewer',
-      currentView: 'search',
-      testId: id,
-      runId: '',
-    });
+    const db = getDatabase();
+    
+    // Find the trace artifact for this test
+    const testArtifacts = await db.select().from(require('./schema.js').artifacts).where(require('drizzle-orm').eq(require('./schema.js').artifacts.testId, id));
+    const traceArtifact = testArtifacts.find((a: any) => a.type === 'trace');
+    
+    if (traceArtifact) {
+      const serverUrl = process.env.REPORTER_PUBLIC_URL || `${request.protocol}://${request.headers.host}`;
+      const traceUrl = `${serverUrl}/api/v1/artifacts/${traceArtifact.id}/download`;
+      return reply.redirect(`https://trace.playwright.dev/?trace=${encodeURIComponent(traceUrl)}`);
+    } else {
+      return reply.code(404).send('Trace not found');
+    }
   });
 
   app.get('/trends', async (_request, reply) => {
     return reply.view('trends.ejs', {
       title: 'Trends',
       currentView: 'trends',
-    });
-  });
-
-  app.get('/search', async (_request, reply) => {
-    return reply.view('search.ejs', {
-      title: 'Search Traces',
-      currentView: 'search',
-    });
-  });
-
-  app.get('/diff', async (_request, reply) => {
-    return reply.view('snapshot-diff.ejs', {
-      title: 'Snapshot Diff',
-      currentView: 'search',
     });
   });
 

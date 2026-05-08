@@ -52,31 +52,9 @@ export const artifacts = pgTable('artifacts', {
   createdAt: timestamp('created_at', { mode: 'date', withTimezone: true }).defaultNow(),
 });
 
-export const traceEntries = pgTable('trace_entries', {
-  id: serial('id').primaryKey(),
-  artifactId: uuid('artifact_id').notNull().references(() => artifacts.id, { onDelete: 'cascade' }),
-  testId: uuid('test_id').notNull().references(() => tests.id, { onDelete: 'cascade' }),
-  runId: uuid('run_id').notNull().references(() => runs.id, { onDelete: 'cascade' }),
-  fingerprint: text('fingerprint').notNull(),
-  actionType: text('action_type'),
-  selector: text('selector'),
-  sourceLocation: text('source_location'),
-  actionIndex: integer('action_index'),
-  wallTime: doublePrecision('wall_time'),
-  durationMs: integer('duration_ms'),
-  url: text('url'),
-  errorText: text('error_text'),
-  snapshotBeforeHash: text('snapshot_before_hash'),
-  snapshotAfterHash: text('snapshot_after_hash'),
-  snapshotExtracted: boolean('snapshot_extracted').default(false),
-  metadata: jsonb('metadata'),
-});
-
 export type Run = typeof runs.$inferSelect;
 export type NewRun = typeof runs.$inferInsert;
 export type Test = typeof tests.$inferSelect;
 export type NewTest = typeof tests.$inferInsert;
 export type Artifact = typeof artifacts.$inferSelect;
 export type NewArtifact = typeof artifacts.$inferInsert;
-export type TraceEntry = typeof traceEntries.$inferSelect;
-export type NewTraceEntry = typeof traceEntries.$inferInsert;

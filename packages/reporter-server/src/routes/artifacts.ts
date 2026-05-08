@@ -23,13 +23,20 @@ export async function registerArtifactsRoutes(app: FastifyInstance): Promise<voi
       return;
     }
 
-    const type = (data.fields.type as unknown as string) as 'video' | 'screenshot' | 'trace';
+    const typeField = data.fields.type;
+    const typeValue = (typeField && typeof typeField === 'object' && 'value' in typeField) 
+      ? String(typeField.value)
+      : String(typeField);
+      
+    const type = typeValue as 'video' | 'screenshot' | 'trace';
+
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${data.filename}`;
-    const relativePath = path.join(runId, testId, filename);
+    const relativePath = `${runId}/${testId}/${filename}`;
     const fullPath = path.join(ARTIFACTS_DIR, relativePath);
 
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
-    await fs.writeFile(fullPath, data.file.toString());
+    const buffer = await data.toBuffer();
+    await fs.writeFile(fullPath, buffer);
 
     const [artifact] = await db
       .insert(artifacts)
@@ -37,7 +44,7 @@ export async function registerArtifactsRoutes(app: FastifyInstance): Promise<voi
         testId,
         type,
         storagePath: relativePath,
-        sizeBytes: (data.file as any).bytesRead,
+        sizeBytes: buffer.length,
         mimeType: data.mimetype,
       })
       .returning();
@@ -55,5 +62,30 @@ export async function registerArtifactsRoutes(app: FastifyInstance): Promise<voi
       .where(eq(artifacts.testId, testId));
 
     reply.send({ artifacts: results });
+  });
+
+  app.get('/api/v1/artifacts/:id/download', async (request, reply) => {
+    const db = getDatabase();
+    const { id } = request.params as { id: string };
+
+    const [artifact] = await db
+      .select()
+      .from(artifacts)
+      .where(eq(artifacts.id, id));
+
+    if (!artifact) {
+      reply.code(404).send({ error: 'Artifact not found' });
+      return;
+    }
+
+    const fullPath = path.join(ARTIFACTS_DIR, artifact.storagePath);
+    try {
+      const buffer = await fs.readFile(fullPath);
+      reply.header('Content-Type', artifact.mimeType || 'application/octet-stream');
+      reply.header('Access-Control-Allow-Origin', '*');
+      reply.send(buffer);
+    } catch (err) {
+      reply.code(404).send({ error: 'File not found on disk' });
+    }
   });
 }

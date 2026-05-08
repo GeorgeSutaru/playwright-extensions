@@ -2,11 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { registerRunsRoutes } from './runs.js';
 import { registerTestsRoutes } from './tests.js';
 import { registerArtifactsRoutes } from './artifacts.js';
-import { registerTracesRoutes } from './traces.js';
-import { registerSearchRoutes } from './search.js';
-import { registerDiffRoutes } from './diff.js';
 import { registerTrendsRoutes } from './trends.js';
-import { registerImportRoutes } from './import.js';
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   const apiKey = process.env.REPORTER_API_KEY;
@@ -26,9 +22,5 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await registerRunsRoutes(app);
   await registerTestsRoutes(app);
   await registerArtifactsRoutes(app);
-  await registerTracesRoutes(app);
-  await registerSearchRoutes(app);
-  await registerDiffRoutes(app);
   await registerTrendsRoutes(app);
-  await registerImportRoutes(app);
 }

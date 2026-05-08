@@ -1,0 +1,31 @@
+--- packages/reporter-e2e/tests/dashboard.spec.ts
++++ packages/reporter-e2e/tests/dashboard.spec.ts
+@@ -84,6 +84,28 @@
+       expect(texts.some(t => t.toLowerCase().includes('failed'))).toBeTruthy();
+     });
+   });
++
++  test.describe('Run Detail Page', () => {
++    test('clicking trace opens trace.playwright.dev', async ({ page, context }) => {
++      await page.goto(`${SERVER_URL}/runs`);
++      // Click first run
++      const firstRunRow = page.locator('.data-table tbody tr:not(.empty-state)').first();
++      await expect(firstRunRow).toBeVisible();
++      await firstRunRow.locator('td a').first().click();
++      
++      await expect(page.locator('.page-header h2')).toContainText('Run Detail');
++      
++      const tracesBtns = page.locator('#testsBody tr:not(.empty-state)').locator('a:has-text("Trace")');
++      await expect(tracesBtns.first()).toBeVisible({ timeout: 10000 });
++      
++      const [newPage] = await Promise.all([
++        context.waitForEvent('page'),
++        tracesBtns.first().click(),
++      ]);
++
++      await expect(newPage).toHaveURL(/trace\.playwright\.dev/);
++    });
++  });
+ 
+   test.describe('Trends Page', () => {
+     test('returns HTTP 200', async ({ request }) => {

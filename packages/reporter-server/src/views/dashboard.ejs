@@ -63,19 +63,21 @@
             <th>Status</th>
             <th>Duration</th>
             <th>Started</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           <% if (!runs || runs.length === 0) { %>
-            <tr><td colspan="5" class="empty-state">No runs yet. Run your tests with the extended reporter.</td></tr>
+            <tr><td colspan="6" class="empty-state">No runs yet. Run your tests with the extended reporter.</td></tr>
           <% } else { %>
             <% runs.forEach(function(run) { %>
-              <tr>
+              <tr data-run-id="<%= run.id %>">
                 <td><a href="/runs/<%= run.id %>"><%= run.title || 'Untitled Run' %></a></td>
                 <td><%= run.project || '-' %></td>
                 <td><span class="badge <%= run.failed > 0 ? 'badge-fail' : 'badge-pass' %>"><%= run.passed %>/<%= run.totalTests %></span></td>
                 <td><%= formatDuration(run.endedAt, run.startedAt) %></td>
                 <td><%= formatDate(run.startedAt) %></td>
+                <td><button class="btn btn-small btn-fail delete-run-btn" onclick="deleteRun('<%= run.id %>')">Delete</button></td>
               </tr>
             <% }); %>
           <% } %>

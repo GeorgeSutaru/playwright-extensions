@@ -128,13 +128,13 @@ function renderRuns(runs, pagination) {
   if (!tbody) return;
 
   if (runs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No runs found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No runs found</td></tr>';
     return;
   }
 
   tbody.innerHTML = runs
     .map((r) => `
-      <tr>
+      <tr data-run-id="${r.id}">
         <td><a href="/runs/${r.id}">${r.title || 'Untitled'}</a></td>
         <td>${r.project || '-'}</td>
         <td>${r.totalTests || 0}</td>
@@ -144,9 +144,22 @@ function renderRuns(runs, pagination) {
         <td>${r.skipped || 0}</td>
         <td>${formatDate(r.startedAt)}</td>
         <td>${r.source || 'live'}</td>
+        <td><button class="btn btn-small btn-fail delete-run-btn" onclick="deleteRun('${r.id}')">Delete</button></td>
       </tr>
     `)
     .join('');
+}
+
+async function deleteRun(runId) {
+  if (!confirm('Are you sure you want to delete this run? This cannot be undone.')) return;
+  try {
+    await api(`/runs/${runId}`, { method: 'DELETE' });
+    // Remove the row from DOM
+    const row = document.querySelector(`tr[data-run-id="${runId}"]`);
+    if (row) row.remove();
+  } catch (err) {
+    alert('Failed to delete run: ' + err.message);
+  }
 }
 
 // Run Detail
@@ -199,8 +212,6 @@ function renderTests(tests) {
         <td>
           <a href="/test/${t.id}" class="btn btn-small btn-primary">History</a>
           ${t.hasTrace ? `<a href="/trace/${t.id}" class="btn btn-small btn-secondary trace-link" target="_blank">Trace</a>` : ''}
-        </td>
-          ${t.hasTrace ? `<a href="/trace/${t.id}" target="_blank" class="btn btn-small btn-primary">Trace</a>` : ''}
         </td>
       </tr>
     `
