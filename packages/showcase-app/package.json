@@ -1,6 +1,7 @@
 {
   "name": "@playwright-extensions/showcase-app",
   "version": "0.0.2",
+  "private": true,
   "description": "Showcase application for Playwright Extensions",
   "main": "src/server.js",
   "scripts": {
