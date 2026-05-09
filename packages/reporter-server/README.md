@@ -4,31 +4,37 @@ Dashboard server for the extended Playwright reporter. Stores test run history, 
 
 ## Deployment
 
+The reporter server encompasses both the UI Node.js backend and a PostgreSQL database in a **single, standalone Docker image** for easy deployment.
+
 ### Docker (Recommended)
 
+Run the standalone container directly:
+
 ```bash
-cd packages/reporter-server
-docker-compose up -d
+docker run -d \
+  -p 8400:8400 \
+  -v reporter-data:/data \
+  --name playwright-reporter \
+  ghcr.io/username/playwright-extensions-reporter-server:latest
 ```
 
-The server is available at `http://localhost:8400`. PostgreSQL runs inside the container on port 8401.
+The server is available at `http://localhost:8400`. PostgreSQL runs fully isolated inside the container.
 
 ### Docker Compose Configuration
 
 ```yaml
+version: '3.8'
+
 services:
   reporter:
-    build: .
+    image: ghcr.io/username/playwright-extensions-reporter-server:latest
     ports:
       - "8400:8400"
     environment:
       - REPORTER_PORT=8400
-      - REPORTER_DB_HOST=localhost
-      - REPORTER_DB_PORT=8401
-      - REPORTER_DB_USER=postgres
-      - REPORTER_DB_NAME=reporter
       - REPORTER_API_KEY=your-secret-key
       - REPORTER_LOG_LEVEL=info
+      # DB properties default to localhost internal routing
     volumes:
       - reporter-data:/data
 
@@ -41,9 +47,9 @@ volumes:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `REPORTER_PORT` | `8400` | HTTP server port |
-| `REPORTER_DB_HOST` | `localhost` | PostgreSQL host |
-| `REPORTER_DB_PORT` | `8401` | PostgreSQL port |
-| `REPORTER_DB_USER` | `postgres` | PostgreSQL user |
+| `REPORTER_DB_HOST` | `localhost` | Internal PostgreSQL host |
+| `REPORTER_DB_PORT` | `5432` | Internal PostgreSQL port |
+| `REPORTER_DB_USER` | `postgres` | Internal PostgreSQL user |
 | `REPORTER_DB_NAME` | `reporter` | Database name |
 | `REPORTER_DB_DIR` | `/data/db` | PostgreSQL data directory |
 | `REPORTER_API_KEY` | *(none)* | API key for auth (header: `x-api-key`) |

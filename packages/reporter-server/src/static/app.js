@@ -281,9 +281,18 @@ async function loadTestDetail(testId) {
                 if (a.type === 'video') {
                   content = `<video src="${url}" controls style="max-width:400px; border:1px solid #ccc; display:block; margin-bottom:8px;"></video>`;
                 } else if (a.type === 'screenshot') {
-                  content = `<a href="${url}" target="_blank"><img src="${url}" alt="Screenshot" style="max-width:400px; border:1px solid #ccc; display:block; margin-bottom:8px;"/></a>`;
+                  content = `<img src="${url}" alt="Screenshot" style="max-width:400px; border:1px solid #ccc; display:block; margin-bottom:8px; cursor:pointer;" onclick="showImageModal('${url}')"/>`;
                 }
-                return `<div class="artifact-box"><p style="margin-bottom:8px; text-transform:capitalize;"><strong>${a.type}</strong></p>${content}<a href="${url}" target="_blank" class="btn btn-small btn-primary" download>Download ${a.type}</a></div>`;
+
+                let ext = '';
+                if (a.type === 'trace') ext = '.zip';
+                else if (a.type === 'video') ext = '.webm';
+                else if (a.type === 'screenshot') ext = '.png';
+                
+                const safeTitle = (data.test?.title || 'artifact').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                const filename = `${safeTitle}_${a.type}${ext}`;
+
+                return `<div class="artifact-box"><p style="margin-bottom:8px; text-transform:capitalize;"><strong>${a.type}</strong></p>${content}<a href="${url}" class="btn btn-small btn-primary" download="${filename}">Download ${a.type}</a></div>`;
               }).join('') + '</div>';
             }
           }
@@ -606,3 +615,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+function showImageModal(src) {
+  let modal = document.getElementById('imageModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'imageModal';
+    modal.style.cssText = 'display:flex; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; cursor:pointer;';
+    modal.onclick = function() { this.style.display = 'none'; };
+    const img = document.createElement('img');
+    img.id = 'imageModalImg';
+    img.style.cssText = 'max-width:90%; max-height:90%; object-fit:contain; background:#fff; margin: auto; border-radius: 4px;';
+    modal.appendChild(img);
+    document.body.appendChild(modal);
+  }
+  document.getElementById('imageModalImg').src = src;
+  modal.style.display = 'flex';
+}
+window.showImageModal = showImageModal;
