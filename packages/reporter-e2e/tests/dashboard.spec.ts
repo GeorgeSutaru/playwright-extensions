@@ -58,21 +58,24 @@ test.describe.serial('Reporter Web UI E2E', () => {
     if (runWithTrace) {
       const tracesRace = await LocatorRace.race([
         page.locator('#testsBody tr:has(td.empty-state)'),
-        page.locator('#testsBody tr:not(:has(td.empty-state)):has(a.trace-link)').first()
+        page.locator('#testsBody tr:not(:has(td.empty-state))').first()
       ]);
 
       const isMissingTraces = (await tracesRace.locator('td').first().getAttribute('class'))?.includes('empty-state');
       expect(isMissingTraces, 'Expected trace records to be present, but found empty state').toBeFalsy();
 
-      const traceLink = tracesRace.locator('a.trace-link').first();
-      await expect(traceLink).toBeVisible({ timeout: 10000 });
-      await expect(traceLink).toHaveAttribute('target', '_blank');
+      // Navigate to the test detail page using the test title link
+      const testDetailsLink = tracesRace.locator('a[href^="/test/"][href$="/details"]').first();
+      await expect(testDetailsLink).toBeVisible({ timeout: 10000 });
+      await testDetailsLink.click();
+      
+      // Verify Test Report view
+      await expect(page.locator('.page-header h2')).toContainText('Test Report');
 
-      const [newPage] = await Promise.all([
-        context.waitForEvent('page'),
-        traceLink.click(),
-      ]);
-      await expect(newPage).toHaveURL(/trace\.playwright\.dev/);
+      // Check Trace functionality inside the iframe
+      const traceIframe = page.locator('#testTraceContainer iframe');
+      await expect(traceIframe).toBeAttached({ timeout: 10000 });
+      await expect(traceIframe).toHaveAttribute('src', /trace\.playwright\.dev/);
     }
     
     // --- Runs View ---

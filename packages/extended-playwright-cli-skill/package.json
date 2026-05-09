@@ -1,12 +1,12 @@
 {
-  "name": "@playwright-extensions/cli-skill",
+  "name": "@playwright-extensions/extended-playwright-cli-skill",
   "version": "0.0.1",
   "description": "Playwright CLI skill extension with race locator patterns for handling multiple UI outcomes",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "pw-ext": "./bin/pw-ext.js",
-    "cli-skill": "./bin/cli-skill.js"
+    "extended-pw-ext": "./bin/extended-pw-ext.js",
+    "extended-playwright-cli-skill": "./bin/extended-playwright-cli-skill.js"
   },
   "scripts": {
     "build": "tsc && npm run copy-assets",

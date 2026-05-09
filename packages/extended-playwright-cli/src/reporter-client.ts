@@ -1,9 +1,28 @@
+import fs from 'fs';
+import path from 'path';
+
+function findReporterUrlFromConfig(): string | undefined {
+  const configFiles = ['playwright.config.ts', 'playwright.config.js', 'playwright.config.mjs', 'playwright.config.cjs'];
+  for (const file of configFiles) {
+    const configPath = path.join(process.cwd(), file);
+    if (fs.existsSync(configPath)) {
+      const content = fs.readFileSync(configPath, 'utf-8');
+      const match = content.match(/@playwright-extensions\/reporter[\s\S]*?serverUrl:\s*(?:process\.env\.[a-zA-Z0-9_]+\s*\|\|\s*)?['"]([^'"]+)['"]/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+  }
+  return undefined;
+}
+
 export class ReporterApiClient {
   private baseUrl: string;
   private apiKey?: string;
 
   constructor(baseUrl?: string, apiKey?: string) {
-    this.baseUrl = (baseUrl || process.env.REPORTER_SERVER_URL || 'http://localhost:8400').replace(/\/+$/, '');
+    const configUrl = findReporterUrlFromConfig();
+    this.baseUrl = (baseUrl || process.env.REPORTER_SERVER_URL || configUrl || 'http://localhost:8400').replace(/\/+$/, '');
     this.apiKey = apiKey || process.env.REPORTER_API_KEY;
   }
 

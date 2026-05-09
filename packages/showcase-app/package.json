@@ -1,6 +1,6 @@
 {
   "name": "@playwright-extensions/showcase-app",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Showcase application for Playwright Extensions",
   "main": "src/server.js",
   "scripts": {
@@ -12,6 +12,6 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",
-    "@playwright-extensions/core": "^0.0.1"
+    "@playwright-extensions/core": "^0.0.2"
   }
 }

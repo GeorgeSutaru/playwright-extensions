@@ -16,13 +16,16 @@ export default defineConfig({
       serverUrl: process.env.REPORTER_SERVER_URL || 'http://localhost:8400',
       projectName: 'showcase-app',
       indexTraces: true
-    }]
+    }],
+    ['line'],
   ],
 
   /* Shared settings for all the projects below. */
   use: {
     baseURL: 'http://localhost:8300',
-    trace: 'on-first-retry',
+    trace: 'on',
+    screenshot: 'on',
+    video: 'on',
     
     // EXTENDED CORE CAPABILITIES 
     // Configured via the `use` scope so they can be overridden per project or per test!
