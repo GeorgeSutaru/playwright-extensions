@@ -104,3 +104,29 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+  const spinner = document.getElementById('loading-spinner');
+  const outcomeContainer = document.getElementById('outcome-container');
+  function hideOutcomes() {
+    spinner.classList.add('hidden');
+    outcomeContainer.innerHTML = '';
+  }
+
+  document.getElementById('fetch-user-btn')?.addEventListener('click', async () => {
+    hideOutcomes();
+    spinner.classList.remove('hidden');
+    try {
+      const response = await fetch('/api/user');
+      const json = await response.json();
+      spinner.classList.add('hidden');
+      outcomeContainer.innerHTML = `
+        <div id="user-message" class="outcome-box success">
+          <h3>Welcome ${json.data.user.name}!</h3>
+        </div>
+      `;
+    } catch(err) {
+      spinner.classList.add('hidden');
+    }
+  });
+});

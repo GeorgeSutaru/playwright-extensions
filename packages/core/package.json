@@ -43,5 +43,9 @@
   },
   "engines": {
     "node": ">=16"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.8.0",
+    "jsonpath-plus": "^10.4.0"
   }
 }

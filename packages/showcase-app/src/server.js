@@ -1,7 +1,9 @@
+const cors = require('cors');
 const express = require('express');
 const path = require('path');
 
 const app = express();
+app.use(cors());
 const PORT = process.env.PORT || 8300;
 
 // Serve static files
@@ -33,4 +35,36 @@ app.post('/api/fail-excluded', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Showcase app listening on port ${PORT}`);
+});
+
+app.get('/api/user', (req, res) => {
+  setTimeout(() => {
+    res.status(200).json({ data: { user: { name: 'Alice' } } });
+  }, 1000);
+});
+
+app.get('/api/product', (req, res) => {
+  setTimeout(() => {
+    res.set('Content-Type', 'text/xml');
+    res.status(200).send('<Catalog><Product><Name>Widget X</Name><Price>19.99</Price></Product></Catalog>');
+  }, 1000);
+});
+
+app.get('/api/status', (req, res) => {
+  setTimeout(() => {
+    res.set('Content-Type', 'text/plain');
+    res.status(200).send('Server Status: ACTIVE system operational');
+  }, 1000);
+});
+
+app.get('/api/missing-path', (req, res) => {
+  setTimeout(() => {
+    res.status(200).json({ data: { unrelated: true } });
+  }, 500);
+});
+
+app.get('/api/error-code', (req, res) => {
+  setTimeout(() => {
+    res.status(500).json({ error: 'Internal Server Error', context: 'Database timeout' });
+  }, 500);
 });

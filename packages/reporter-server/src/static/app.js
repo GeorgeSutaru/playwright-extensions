@@ -489,7 +489,7 @@ async function loadRecurringFailures(from) {
       <tr>
         <td>${escapeHtml(f.title)}</td>
         <td><code>${escapeHtml(f.file)}</code></td>
-        <td>${f.failure_count}</td>
+        <td>${f.failureCount}</td>
         <td><span class="error-text" title="${escapeHtml(f.errorText || '')}">${escapeHtml((f.errorText || '').slice(0, 60))}</span></td>
       </tr>
     `

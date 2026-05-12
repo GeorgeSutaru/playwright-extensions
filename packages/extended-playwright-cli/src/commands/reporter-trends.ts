@@ -67,7 +67,7 @@ export const reporterTrendsCommand: CliCommand = {
         for (const f of failures.slice(0, 10)) {
           const title = (f.title as string) || '';
           const file = (f.file as string) || '';
-          const count = (f.failure_count as number) || 0;
+          const count = (f.failureCount as number) || 0;
           const error = (f.errorText as string) || '';
 
           console.log(`  ✗ ${title}`);

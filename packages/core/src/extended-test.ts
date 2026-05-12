@@ -1,10 +1,12 @@
-import { test as base, expect as pwExpect } from '@playwright/test';
+import { test as base, expect as pwExpect, Page, Locator } from '@playwright/test';
+import { JSONPath } from 'jsonpath-plus';
+import { XMLParser } from 'fast-xml-parser';
 
 function applyAction(action: string, errorMsg: string) {
   if (action === 'fail') {
-    pwExpect(true, errorMsg).toBe(false);
+    pwExpect(errorMsg, errorMsg).toBeNull();
   } else if (action === 'soft-fail') {
-    pwExpect.soft(true, errorMsg).toBe(false);
+    pwExpect.soft(errorMsg, errorMsg).toBeNull();
   } else if (action === 'log') {
     console.error(errorMsg);
   }
@@ -13,16 +15,11 @@ function applyAction(action: string, errorMsg: string) {
 function matchUrl(url: string, patterns: string[]) {
   if (!patterns || patterns.length === 0) return false;
   return patterns.some(p => {
-    // Exact match or substring
     if (url.includes(p)) return true;
-    
-    // Support wildcards (* -> .*)
     if (p.includes('*')) {
       const regexStr = p.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
       if (new RegExp(`^${regexStr}$`).test(url)) return true;
     }
-    
-    // Check if it's already a valid regex
     if (p.startsWith('/') && p.endsWith('/')) {
       try {
         return new RegExp(p.slice(1, -1)).test(url);
@@ -30,7 +27,6 @@ function matchUrl(url: string, patterns: string[]) {
         return false;
       }
     }
-    
     return false;
   });
 }
@@ -50,13 +46,193 @@ export type ExtendedTestOptions = {
   interceptors: any;
 };
 
-export const test = base.extend<ExtendedTestOptions & { _autoInterceptors: void }>({
+export interface ExtendedLocator extends Locator {
+  locator(selector: string | Locator, options?: {
+    has?: Locator;
+    hasNot?: Locator;
+    hasNotText?: string | RegExp;
+    hasText?: string | RegExp;
+  }): ExtendedLocator;
+  locator(urlFilter: string | RegExp, filterPath: string, responseType?: 'json' | 'xml' | 'regex', locatorOptions?: { exact?: boolean }): ExtendedLocator;
+  first(): ExtendedLocator;
+  last(): ExtendedLocator;
+  nth(index: number): ExtendedLocator;
+  filter(options?: {
+    has?: Locator;
+    hasNot?: Locator;
+    hasText?: string | RegExp;
+    hasNotText?: string | RegExp;
+  }): ExtendedLocator;
+  and(locator: Locator): ExtendedLocator;
+  or(locator: Locator): ExtendedLocator;
+}
+
+export interface ExtendedPage extends Page {
+  locator(selector: string | Locator, options?: {
+    has?: Locator;
+    hasNot?: Locator;
+    hasNotText?: string | RegExp;
+    hasText?: string | RegExp;
+  }): ExtendedLocator;
+  locator(urlFilter: string | RegExp, filterPath: string, responseType?: 'json' | 'xml' | 'regex', locatorOptions?: { exact?: boolean }): ExtendedLocator;
+}
+
+export const test = base.extend<ExtendedTestOptions & { _autoInterceptors: void, page: ExtendedPage }>({
   interceptors: [{}, { option: true }],
   
+  page: async ({ page }, use) => {
+    const apiResponses: { url: string, status: number, body: Promise<string> }[] = [];
+    
+    page.on('response', (res) => {
+        // Only track API like responses
+        apiResponses.push({ url: res.url(), status: res.status(), body: res.text().catch(() => '') });
+    });
+
+    const originalLocator = page.locator.bind(page);
+
+    function createApiLocatorProxy(parentEngine: () => Promise<Locator | Page>, urlFilter: any, filterPath: string, responseType: string, locatorOptions: any): ExtendedLocator {
+        const resolveActualLocator = async (): Promise<Locator> => {
+          const checkMatch = (rUrl: string) => {
+            if (typeof urlFilter === 'string') return matchUrl(rUrl, [urlFilter]);
+            return urlFilter.test(rUrl);
+          };
+
+          let matchedBody = '';
+          let matchedStatus = 200;
+          const existing = [...apiResponses].reverse().find(r => checkMatch(r.url));
+          if (existing) {
+            matchedBody = await existing.body;
+            matchedStatus = existing.status;
+          } else {
+            const res = await page.waitForResponse(r => checkMatch(r.url()));
+            matchedBody = await res.text();
+            matchedStatus = res.status();
+          }
+
+          let extractedText: string | undefined;
+          try {
+            if (responseType === 'json') {
+              const parsed = JSON.parse(matchedBody);
+              const result = JSONPath({ path: filterPath, json: parsed });
+              extractedText = result && result.length > 0 ? String(result[0]) : undefined;
+            } else if (responseType === 'xml') {
+              const parser = new XMLParser();
+              const parsed = parser.parse(matchedBody);
+              const result = JSONPath({ path: filterPath, json: parsed });
+              extractedText = result && result.length > 0 ? String(result[0]) : undefined;
+            } else if (responseType === 'regex') {
+              const r = new RegExp(filterPath);
+              const match = matchedBody.match(r);
+              extractedText = match ? (match[1] || match[0]) : undefined;
+            }
+          } catch(e) {
+            throw new Error(`locator: Failed to parse body for url ${urlFilter} (Status: ${matchedStatus}).\nMatched Body:\n${matchedBody}\nError: ${e}`);
+          }
+
+          if (matchedStatus >= 400 && !extractedText) {
+            throw new Error(`locator: Request to ${urlFilter} failed with HTTP Status ${matchedStatus}. Could not extract path "${filterPath}".\nMatched Body:\n${matchedBody}`);
+          }
+
+          if (!extractedText) {
+            throw new Error(`locator: Could not extract value for path "${filterPath}" from response matching ${urlFilter}.\nMatched Body:\n${matchedBody}`);
+          }
+
+          const parentObj = await parentEngine();
+          return parentObj.getByText(extractedText, locatorOptions);
+        };
+
+        const createProxy = (resolveEngine: () => Promise<Locator>): ExtendedLocator => {
+          const dummy = originalLocator('__api_locator_pending__');
+          const syncLocators = new Set([
+            'locator', 'getByAltText', 'getByLabel', 'getByPlaceholder',
+            'getByRole', 'getByTestId', 'getByText', 'getByTitle',
+            'first', 'last', 'nth', 'filter', 'and', 'or'
+          ]);
+
+          return new Proxy(dummy, {
+            get(target, prop, receiver) {
+              if (prop === 'then') return undefined; // Preempt Promise.resolve checks
+              if (prop === 'page') return () => page;
+              
+              const value = Reflect.get(target, prop, receiver);
+              if (typeof value === 'function') {
+                if (prop === 'constructor' || typeof prop === 'symbol') {
+                  return value;
+                }
+                if (prop === 'toString') return value.bind(target);
+                return (...args: any[]) => {
+                  if (prop === 'locator' && typeof args[1] === 'string') {
+                      // Nested apiLocator call via proxy!
+                      return createApiLocatorProxy(resolveEngine, args[0], args[1], args[2] || 'json', args[3]);
+                  }
+                  if (typeof prop === 'string' && syncLocators.has(prop)) {
+                    return createProxy(async () => {
+                      const actual = await resolveEngine();
+                      return (actual as any)[prop](...args);
+                    });
+                  }
+                  return resolveEngine().then(actual => (actual as any)[prop](...args));
+                };
+              }
+              return value;
+            }
+          });
+        };
+
+        return createProxy(resolveActualLocator);
+    }
+
+    function recursiveWrap(locator: Locator): ExtendedLocator {
+        if ((locator as any).__isWrappedApiLocatorProxy) return locator as unknown as ExtendedLocator;
+        const proxy = new Proxy(locator, {
+            get(target, prop, receiver) {
+                if (prop === 'then') return undefined;
+                if (prop === '__isWrappedApiLocatorProxy') return true;
+                if (prop === 'locator') {
+                    return function(arg1: any, arg2?: any, arg3?: any, arg4?: any) {
+                        if (typeof arg2 === 'string') {
+                            return createApiLocatorProxy(async () => target, arg1, arg2, arg3 || 'json', arg4);
+                        }
+                        return recursiveWrap((target as any).locator(arg1, arg2));
+                    };
+                }
+                const value = Reflect.get(target, prop, receiver);
+                if (typeof value === 'function') {
+                    if (prop === 'constructor' || typeof prop === 'symbol') {
+                        return value;
+                    }
+                    if (prop === 'toString') return value.bind(target);
+                    const syncLocators = new Set([
+                        'getByAltText', 'getByLabel', 'getByPlaceholder',
+                        'getByRole', 'getByTestId', 'getByText', 'getByTitle',
+                        'first', 'last', 'nth', 'filter', 'and', 'or'
+                    ]);
+                    if (typeof prop === 'string' && syncLocators.has(prop)) {
+                        return (...args: any[]) => {
+                            const res = value.apply(target, args);
+                            return recursiveWrap(res);
+                        };
+                    }
+                    return value.bind(target);
+                }
+                return value;
+            }
+        });
+        return proxy as unknown as ExtendedLocator;
+    }
+
+    (page as any).locator = function(arg1: any, arg2?: any, arg3?: any, arg4?: any) {
+      if (typeof arg2 === 'string') {
+        return createApiLocatorProxy(async () => page, arg1, arg2, arg3 || 'json', arg4);
+      }
+      return recursiveWrap(originalLocator(arg1, arg2));
+    };
+
+    await use(page as ExtendedPage);
+  },
+
   _autoInterceptors: [async ({ page, interceptors }, use) => {
     let config: any = {};
-    
-    // Merge provided interceptor options with defaults
     const user = interceptors || {};
     const reqObj = typeof user.requests === 'boolean' ? { enabled: user.requests } : user.requests || {};
     const conObj = typeof user.console === 'boolean' ? { enabled: user.console } : user.console || {};
@@ -84,12 +260,8 @@ export const test = base.extend<ExtendedTestOptions & { _autoInterceptors: void 
       page.on('response', response => {
         const url = response.url();
         const status = response.status();
-        
-        // Filter include/exclude
         if (config.requests.include && config.requests.include.length > 0 && !matchUrl(url, config.requests.include)) return;
         if (config.requests.exclude && config.requests.exclude.length > 0 && matchUrl(url, config.requests.exclude)) return;
-
-        // Check status code errors
         if (matchStatusCode(status, config.requests.statusCodes)) {
           const err = `[Request Error] ${response.request().method()} ${url} - Status ${status}`;
           if (config.requests.action !== 'log') console.error(err);
@@ -101,7 +273,6 @@ export const test = base.extend<ExtendedTestOptions & { _autoInterceptors: void 
         const url = request.url();
         if (config.requests.include && config.requests.include.length > 0 && !matchUrl(url, config.requests.include)) return;
         if (config.requests.exclude && config.requests.exclude.length > 0 && matchUrl(url, config.requests.exclude)) return;
-
         const err = `[Request Failed] ${request.method()} ${url} - ${request.failure()?.errorText}`;
         if (config.requests.action !== 'log') console.error(err);
         applyAction(config.requests.action, err);
@@ -112,11 +283,7 @@ export const test = base.extend<ExtendedTestOptions & { _autoInterceptors: void 
       page.on('console', msg => {
         const type = msg.type();
         const text = msg.text();
-        
-        // Ignore browser-generated network request console errors so they don't double-trigger 
-        // conflicts alongside the explicit request interceptors
         if (text.includes('Failed to load resource: the server responded with a status of')) return;
-
         if (type === 'error' || type === 'warning') {
             const err = `[Console ${type}] ${text}`;
             if (config.console.action !== 'log') console.error(err);
