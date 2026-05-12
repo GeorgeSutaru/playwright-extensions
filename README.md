@@ -6,7 +6,7 @@ Extended Playwright CLI ecosystem with race locator patterns and native session 
 
 | Package | Description |
 |---------|-------------|
-| [@playwright-extensions/core](packages/core) | Core extensions library with race locator patterns |
+| [@playwright-extensions/core](packages/core) | Core extensions library with element watchers, query responses, API locators, and race patterns |
 | [@playwright-extensions/cli-skill](packages/cli-skill) | CLI skill extension using daemon socket protocol |
 | [@playwright-extensions/extended-playwright-cli](packages/extended-playwright-cli) | Extended CLI with native playwright session management |
 | [@playwright-extensions/reporter](packages/reporter) | Extended Playwright reporter package sending test results to server |

@@ -8,6 +8,32 @@ export interface QueryResponseLocator extends Promise<any> {
     nth(index: number): QueryResponseLocator;
 }
 
+export interface ElementChange {
+    type: string;
+    attributeName?: string | null;
+    oldValue?: string | null;
+    newValue?: string | null;
+}
+
+export interface ElementChangeEvent {
+    type: 'created' | 'changed' | 'deleted';
+    name: string;
+    index: number;
+    changes?: ElementChange[];
+    totalCount: number;
+}
+
+export interface ElementEventPromise extends Promise<ElementChangeEvent> {
+    first(): ElementEventPromise;
+    last(): ElementEventPromise;
+    nth(index: number): ElementEventPromise;
+}
+
+export interface ElementWatcher {
+    waitForEvent(eventType?: 'created' | 'changed' | 'deleted', options?: { timeout?: number }): ElementEventPromise;
+    unwatch(): void;
+}
+
 declare module '@playwright/test' {
   interface Locator {
     locator(urlFilter: string | RegExp, filterPath: string, responseType?: 'json' | 'xml' | 'regex', locatorOptions?: { exact?: boolean }): Locator;
@@ -15,6 +41,10 @@ declare module '@playwright/test' {
   interface Page {
     locator(urlFilter: string | RegExp, filterPath: string, responseType?: 'json' | 'xml' | 'regex', locatorOptions?: { exact?: boolean }): Locator;
     queryResponse(urlFilter: string | RegExp, filterPath: string, responseType?: 'json' | 'xml' | 'regex'): QueryResponseLocator;
+    watchElement(name: string, locator: Locator): Promise<ElementWatcher>;
+    emit(event: 'element', data: ElementChangeEvent): boolean;
+    on(event: 'element', listener: (data: ElementChangeEvent) => void): this;
+    off(event: 'element', listener: (data: ElementChangeEvent) => void): this;
   }
 }
 
@@ -62,6 +92,7 @@ function matchStatusCode(status: number, codes: (number | string)[]) {
 
 export type ExtendedTestOptions = {
   interceptors: any;
+  watchElements?: boolean;
 };
 
 export type ExtendedLocator = Locator;
@@ -70,14 +101,228 @@ export type ExtendedPage = Page;
 
 export const test = base.extend<ExtendedTestOptions & { _autoInterceptors: void, page: ExtendedPage }>({
   interceptors: [{}, { option: true }],
+  watchElements: [false, { option: true }],
   
-  page: async ({ page }, use) => {
+  page: async ({ page, watchElements }, use) => {
     const apiResponses: { url: string, status: number, body: Promise<string> }[] = [];
     
     page.on('response', (res) => {
         // Only track API like responses
         apiResponses.push({ url: res.url(), status: res.status(), body: res.text().catch(() => '') });
     });
+
+    // Element Events Setup
+    if (watchElements) {
+        // Expose Playwright's internal selector engine to the browser context globally
+        const context = page.context();
+        if ((context as any)._channel && (context as any)._channel.exposeConsoleApi) {
+            await (context as any)._channel.exposeConsoleApi();
+        }
+
+        await page.exposeFunction('__pwEmitElementEvent', (type: 'created' | 'changed' | 'deleted', name: string, index: number, totalCount: number, changes?: any[]) => {
+            page.emit('element', { type, name, index, totalCount, changes });
+        });
+
+        await page.addInitScript(() => {
+            (window as any).__pw_watched_selectors = {};
+            (window as any).__pw_element_states = {};
+
+            let timeout: any;
+            const observer = new MutationObserver((mutations) => {
+                if (!(window as any).playwright) return;
+
+                for (const m of mutations) {
+                    let curr: any = m.target;
+                    if (curr.nodeType === Node.TEXT_NODE) curr = curr.parentElement;
+                    
+                    while (curr) {
+                        if (curr && curr.__pw_watch_id) {
+                            curr.__pw_watch_mutations = curr.__pw_watch_mutations || [];
+                            let change: any = { type: m.type };
+                            if (m.type === 'attributes') {
+                                change.attributeName = m.attributeName;
+                                change.oldValue = m.oldValue;
+                                change.newValue = curr.getAttribute(m.attributeName);
+                            } else if (m.type === 'characterData') {
+                                change.oldValue = m.oldValue;
+                                change.newValue = m.target.nodeValue;
+                            }
+                            curr.__pw_watch_mutations.push(change);
+                        }
+                        curr = curr.parentElement;
+                    }
+                }
+                if (timeout) clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    const selectors = (window as any).__pw_watched_selectors;
+                    const states = (window as any).__pw_element_states;
+                    const engine = (window as any).playwright;
+
+                    for (const [name, selector] of Object.entries(selectors)) {
+                        let previousIds: string[] = states[name] || [];
+                        let currentIds: string[] = [];
+                        
+                        try {
+                            const elements = engine.$$(selector as string);
+                            let elIndex = 0;
+                            for (const el of elements as any[]) {
+                                if (!el.__pw_watch_id) {
+                                    el.__pw_watch_id = Math.random().toString(36).substring(2) + Date.now().toString(36);
+                                    el.__pw_watch_mutations = 0;
+                                }
+                                const id = el.__pw_watch_id;
+                                const muts = el.__pw_watch_mutations;
+                                el.__pw_watch_mutations = 0;
+                                currentIds.push(id);
+
+                                if (!previousIds.includes(id)) {
+                                    (window as any).__pwEmitElementEvent('created', name, elIndex, currentIds.length).catch(() => {});
+                                } else if (muts && muts.length > 0) {
+                                    (window as any).__pwEmitElementEvent('changed', name, elIndex, currentIds.length, muts).catch(() => {});
+                                }
+                                elIndex++;
+                            }
+
+                            let prevIndex = 0;
+                            for (const prevId of previousIds) {
+                                if (!currentIds.includes(prevId)) {
+                                    (window as any).__pwEmitElementEvent('deleted', name, prevIndex, previousIds.length).catch(() => {});
+                                }
+                                prevIndex++;
+                            }
+
+                            states[name] = currentIds;
+                        } catch (e) {
+                            // Ignored parsing errors
+                        }
+                    }
+                }, 50);
+            });
+            window.addEventListener('DOMContentLoaded', () => {
+                observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true, attributeOldValue: true, characterDataOldValue: true });
+            });
+        });
+    }
+
+    page.watchElement = async (name: string, locator: Locator) => {
+        if (!watchElements) {
+            throw new Error(`watchElement is disabled. Enable 'watchElements: true' in your test configuration to use 'page.watchElement()'.`);
+        }
+        const selector = (locator as any)._selector || locator.toString();
+        await page.evaluate(({ name, selector }) => {
+            (window as any).__pw_watched_selectors = (window as any).__pw_watched_selectors || {};
+            (window as any).__pw_watched_selectors[name] = selector;
+            
+            const engine = (window as any).playwright;
+            if (engine) {
+                const states = (window as any).__pw_element_states = (window as any).__pw_element_states || {};
+                const currentIds: string[] = [];
+                try {
+                    for (const el of engine.$$(selector as string)) {
+                         el.__pw_watch_id = el.__pw_watch_id || Math.random().toString(36).substring(2) + Date.now().toString(36);
+                         el.__pw_watch_mutations = 0;
+                         currentIds.push(el.__pw_watch_id);
+                    }
+                    states[name] = currentIds;
+                } catch(e) {}
+            }
+        }, { name, selector });
+
+        const capturedEvents: ElementChangeEvent[] = [];
+        const listeners: Set<Function> = new Set();
+        
+        const internalListener = (data: ElementChangeEvent) => {
+             if (data.name === name) {
+                 capturedEvents.push(data);
+                 for (const listener of listeners) {
+                     listener(data);
+                 }
+             }
+        };
+        page.on('element', internalListener);
+
+        const unwatch = () => {
+             page.off('element', internalListener);
+             page.evaluate((name) => {
+                 if ((window as any).__pw_watched_selectors) delete (window as any).__pw_watched_selectors[name];
+                 if ((window as any).__pw_element_states) delete (window as any).__pw_element_states[name];
+             }, name).catch(() => {});
+        };
+
+        function createWaitForEventProxy(eventType?: 'created' | 'changed' | 'deleted', options?: { timeout?: number }, index?: number): any {
+            const resolveWait = async () => {
+                const count = await page.evaluate((name) => {
+                    const states = (window as any).__pw_element_states;
+                    return states && states[name] ? states[name].length : 0;
+                }, name);
+
+                if ((eventType === 'changed' || eventType === 'deleted') && count === 0) {
+                    // It is possible `changed` resolves from a cached event from BEFORE it got deleted.
+                    const existingCached = capturedEvents.find(e => {
+                         if (eventType && e.type !== eventType) return false;
+                         let expected = index !== undefined ? (index < 0 ? e.totalCount + index : index) : (e.totalCount <= 1 ? 0 : undefined);
+                         return expected === undefined || e.index === expected;
+                    });
+                    if (!existingCached) throw new Error(`Cannot wait for '${eventType}' event: no elements currently match the locator.`);
+                }
+
+                if (index === undefined && count > 1) {
+                    throw new Error(`Strict mode violation: multiple elements match the locator. Use .first(), .last(), or .nth(index) to specify which element's event to wait for.`);
+                }
+
+                const existing = capturedEvents.find(e => {
+                     if (eventType && e.type !== eventType) return false;
+                     let expected = index !== undefined ? (index < 0 ? e.totalCount + index : index) : (e.totalCount <= 1 ? 0 : undefined);
+                     return expected === undefined || e.index === expected;
+                });
+                if (existing) return existing;
+
+                return new Promise<ElementChangeEvent>((resolve, reject) => {
+                    const timeout = options?.timeout ?? 30000;
+                    let isResolved = false;
+
+                    const timer = setTimeout(() => {
+                        if (isResolved) return;
+                        isResolved = true;
+                        listeners.delete(listener);
+                        reject(new Error(`Timeout ${timeout}ms exceeded while waiting for element event "${eventType || 'any'}" on "${name}"`));
+                    }, timeout);
+
+                    const listener = (data: ElementChangeEvent) => {
+                        if (!eventType || data.type === eventType) {
+                            let expectedIndex: number | undefined = index;
+                            if (index !== undefined) {
+                                expectedIndex = index < 0 ? data.totalCount + index : index;
+                            } else if (data.totalCount <= 1) {
+                                expectedIndex = 0;
+                            }
+                            
+                            if (expectedIndex !== undefined && data.index !== expectedIndex) return;
+
+                            if (isResolved) return;
+                            isResolved = true;
+                            clearTimeout(timer);
+                            listeners.delete(listener);
+                            resolve(data);
+                        }
+                    };
+                    listeners.add(listener);
+                });
+            };
+
+            const obj: any = {};
+            obj.then = (onfulfilled: any, onrejected: any) => resolveWait().then(onfulfilled, onrejected);
+            obj.first = () => createWaitForEventProxy(eventType, options, 0);
+            obj.last = () => createWaitForEventProxy(eventType, options, -1);
+            obj.nth = (n: number) => createWaitForEventProxy(eventType, options, n);
+            return obj;
+        }
+
+        return {
+             waitForEvent: (eventType?: 'created' | 'changed' | 'deleted', options?: { timeout?: number }) => createWaitForEventProxy(eventType, options),
+             unwatch
+        };
+    };
 
     const originalLocator = page.locator.bind(page);
 

@@ -168,3 +168,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+  const list = document.getElementById('item-list');
+  if (!list) return;
+
+  document.getElementById('add-item-btn').addEventListener('click', () => {
+    const li = document.createElement('li');
+    li.textContent = 'New Item';
+    list.appendChild(li);
+  });
+
+  document.getElementById('modify-item-btn').addEventListener('click', () => {
+    const lastItem = list.lastElementChild;
+    if (lastItem) {
+      lastItem.textContent = 'Modified Item';
+    }
+  });
+
+  document.getElementById('delete-item-btn').addEventListener('click', () => {
+    const lastItem = list.lastElementChild;
+    if (lastItem) {
+      list.removeChild(lastItem);
+    }
+  });
+});
