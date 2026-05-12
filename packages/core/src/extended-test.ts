@@ -2,6 +2,24 @@ import { test as base, expect as pwExpect, Page, Locator } from '@playwright/tes
 import { JSONPath } from 'jsonpath-plus';
 import { XMLParser } from 'fast-xml-parser';
 
+export interface QueryResponseLocator extends Promise<any> {
+    first(): QueryResponseLocator;
+    last(): QueryResponseLocator;
+    nth(index: number): QueryResponseLocator;
+}
+
+declare module '@playwright/test' {
+  interface Locator {
+    locator(urlFilter: string | RegExp, filterPath: string, responseType?: 'json' | 'xml' | 'regex', locatorOptions?: { exact?: boolean }): Locator;
+  }
+  interface Page {
+    locator(urlFilter: string | RegExp, filterPath: string, responseType?: 'json' | 'xml' | 'regex', locatorOptions?: { exact?: boolean }): Locator;
+    queryResponse(urlFilter: string | RegExp, filterPath: string, responseType?: 'json' | 'xml' | 'regex'): QueryResponseLocator;
+  }
+}
+
+
+
 function applyAction(action: string, errorMsg: string) {
   if (action === 'fail') {
     pwExpect(errorMsg, errorMsg).toBeNull();
@@ -46,36 +64,9 @@ export type ExtendedTestOptions = {
   interceptors: any;
 };
 
-export interface ExtendedLocator extends Locator {
-  locator(selector: string | Locator, options?: {
-    has?: Locator;
-    hasNot?: Locator;
-    hasNotText?: string | RegExp;
-    hasText?: string | RegExp;
-  }): ExtendedLocator;
-  locator(urlFilter: string | RegExp, filterPath: string, responseType?: 'json' | 'xml' | 'regex', locatorOptions?: { exact?: boolean }): ExtendedLocator;
-  first(): ExtendedLocator;
-  last(): ExtendedLocator;
-  nth(index: number): ExtendedLocator;
-  filter(options?: {
-    has?: Locator;
-    hasNot?: Locator;
-    hasText?: string | RegExp;
-    hasNotText?: string | RegExp;
-  }): ExtendedLocator;
-  and(locator: Locator): ExtendedLocator;
-  or(locator: Locator): ExtendedLocator;
-}
+export type ExtendedLocator = Locator;
 
-export interface ExtendedPage extends Page {
-  locator(selector: string | Locator, options?: {
-    has?: Locator;
-    hasNot?: Locator;
-    hasNotText?: string | RegExp;
-    hasText?: string | RegExp;
-  }): ExtendedLocator;
-  locator(urlFilter: string | RegExp, filterPath: string, responseType?: 'json' | 'xml' | 'regex', locatorOptions?: { exact?: boolean }): ExtendedLocator;
-}
+export type ExtendedPage = Page;
 
 export const test = base.extend<ExtendedTestOptions & { _autoInterceptors: void, page: ExtendedPage }>({
   interceptors: [{}, { option: true }],
@@ -89,6 +80,85 @@ export const test = base.extend<ExtendedTestOptions & { _autoInterceptors: void,
     });
 
     const originalLocator = page.locator.bind(page);
+
+    
+    function createQueryResponseProxy(urlFilter: any, filterPath: string, responseType: string, index?: number): any {
+        const resolveQuery = async () => {
+            const checkMatch = (rUrl: string) => {
+                if (typeof urlFilter === 'string') return matchUrl(rUrl, [urlFilter]);
+                return urlFilter.test(rUrl);
+            };
+
+            const matchedResponses = apiResponses.filter(r => checkMatch(r.url));
+            
+            if (matchedResponses.length === 0) {
+                throw new Error(`queryResponse: No intercepted responses matched the URL filter: ${urlFilter}`);
+            }
+
+            let allResults: any[] = [];
+            let responseCountWithResults = 0;
+
+            for (const r of matchedResponses) {
+                const body = await r.body;
+                let resultsForThisResponse: any[] = [];
+                try {
+                    if (responseType === 'json') {
+                        const parsed = JSON.parse(body);
+                        const res = JSONPath({ path: filterPath, json: parsed });
+                        if (Array.isArray(res)) resultsForThisResponse = res;
+                        else if (res !== undefined) resultsForThisResponse = [res];
+                    } else if (responseType === 'xml') {
+                        const parser = new XMLParser();
+                        const parsed = parser.parse(body);
+                        const res = JSONPath({ path: filterPath, json: parsed });
+                        if (Array.isArray(res)) resultsForThisResponse = res;
+                        else if (res !== undefined) resultsForThisResponse = [res];
+                    } else if (responseType === 'regex') {
+                        const reg = new RegExp(filterPath, 'g');
+                        let m;
+                        while ((m = reg.exec(body)) !== null) {
+                            resultsForThisResponse.push(m[1] !== undefined ? m[1] : m[0]);
+                        }
+                    }
+                } catch(e) {
+                     continue;
+                }
+                
+                if (resultsForThisResponse.length > 0) {
+                    responseCountWithResults++;
+                    allResults.push(...resultsForThisResponse);
+                }
+            }
+
+            if (allResults.length === 0) {
+                throw new Error(`queryResponse: Found ${matchedResponses.length} responses matching ${urlFilter}, but no results found for path "${filterPath}".`);
+            }
+
+            if (index === undefined) {
+                if (allResults.length > 1) {
+                    throw new Error(`queryResponse strict mode violation: Multiple results found.\n- ${matchedResponses.length} responses matched the URL filter.\n- ${responseCountWithResults} of those responses contained matching results.\n- Total results extracted: ${allResults.length}.\nUse .first(), .last(), or .nth(index) to handle multiple results.`);
+                }
+                return allResults[0];
+            } else {
+                let actualIndex = index < 0 ? allResults.length + index : index;
+                if (actualIndex < 0 || actualIndex >= allResults.length) {
+                    throw new Error(`queryResponse: Index ${index} out of bounds for ${allResults.length} results.`);
+                }
+                return allResults[actualIndex];
+            }
+        };
+
+        const obj: any = {};
+        obj.then = (onfulfilled: any, onrejected: any) => resolveQuery().then(onfulfilled, onrejected);
+        obj.first = () => createQueryResponseProxy(urlFilter, filterPath, responseType, 0);
+        obj.last = () => createQueryResponseProxy(urlFilter, filterPath, responseType, -1);
+        obj.nth = (n: number) => createQueryResponseProxy(urlFilter, filterPath, responseType, n);
+        return obj;
+    }
+
+    (page as any).queryResponse = function(urlFilter: any, filterPath: string, responseType: string = 'json') {
+      return createQueryResponseProxy(urlFilter, filterPath, responseType);
+    };
 
     function createApiLocatorProxy(parentEngine: () => Promise<Locator | Page>, urlFilter: any, filterPath: string, responseType: string, locatorOptions: any): ExtendedLocator {
         const resolveActualLocator = async (): Promise<Locator> => {

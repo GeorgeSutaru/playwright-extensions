@@ -132,7 +132,7 @@ test.describe('page.raceLocator()', () => {
         page.locator('#first'),
         page.locator('#second'),
       ]);
-      expect.fail('Should have thrown');
+      throw new Error('Should have thrown');
     } catch (err: any) {
       expect(err.message).toContain('#first');
       expect(err.message).toContain('#second');

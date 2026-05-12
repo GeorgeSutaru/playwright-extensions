@@ -1,8 +1,8 @@
 import { Reporter, FullConfig, FullResult, TestError } from '@playwright/test/reporter';
 import { ReporterConfig, DefaultReporterConfig } from './config.js';
 import { ReporterClient } from './client.js';
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 
 interface TestContext {
   testId: string;

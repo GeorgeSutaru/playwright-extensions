@@ -13,14 +13,14 @@ export default defineConfig({
       projectName: 'core',
     }]
   ],
-  interceptors: {
-    requests: true,
-    console: true,
-    errors: true,
-    softFail: true,
-  },
   use: {
     trace: 'on-first-retry',
+    interceptors: {
+      requests: true,
+      console: true,
+      errors: true,
+      softFail: true,
+    },
   },
   projects: [
     {

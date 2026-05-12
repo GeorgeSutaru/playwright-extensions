@@ -22,14 +22,14 @@ export default defineConfig({
       projectName: 'reporter-e2e',
     }]
   ],
-  interceptors: {
-    requests: true,
-    console: true,
-    errors: true,
-    softFail: true,
-  },
   use: {
     trace: 'on',
+    interceptors: {
+      requests: true,
+      console: true,
+      errors: true,
+      softFail: true,
+    },
   },
   projects: [
     {
