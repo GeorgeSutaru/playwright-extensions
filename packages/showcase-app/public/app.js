@@ -106,27 +106,65 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  const spinner = document.getElementById('loading-spinner');
-  const outcomeContainer = document.getElementById('outcome-container');
-  function hideOutcomes() {
-    spinner.classList.add('hidden');
-    outcomeContainer.innerHTML = '';
+  const apiSpinner = document.getElementById('api-loading-spinner');
+  const apiOutcomeContainer = document.getElementById('api-outcome-container');
+  
+  function hideApiOutcomes() {
+    if (apiSpinner) apiSpinner.classList.add('hidden');
+    if (apiOutcomeContainer) apiOutcomeContainer.innerHTML = '';
   }
 
   document.getElementById('fetch-user-btn')?.addEventListener('click', async () => {
-    hideOutcomes();
-    spinner.classList.remove('hidden');
+    hideApiOutcomes();
+    apiSpinner.classList.remove('hidden');
     try {
       const response = await fetch('/api/user');
       const json = await response.json();
-      spinner.classList.add('hidden');
-      outcomeContainer.innerHTML = `
+      apiSpinner.classList.add('hidden');
+      apiOutcomeContainer.innerHTML = `
         <div id="user-message" class="outcome-box success">
           <h3>Welcome ${json.data.user.name}!</h3>
         </div>
       `;
     } catch(err) {
-      spinner.classList.add('hidden');
+      apiSpinner.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('fetch-product-btn')?.addEventListener('click', async () => {
+    hideApiOutcomes();
+    apiSpinner.classList.remove('hidden');
+    try {
+      const response = await fetch('/api/product');
+      // For showcase simplicity, assuming valid XML structure response
+      const xml = await response.text();
+      // Extract Widget X rudimentary parse
+      const productName = xml.split('<Name>')[1].split('</Name>')[0];
+      apiSpinner.classList.add('hidden');
+      apiOutcomeContainer.innerHTML = `
+        <div id="product-message" class="outcome-box success">
+          <h3>Product loaded: ${productName}</h3>
+        </div>
+      `;
+    } catch(err) {
+      apiSpinner.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('fetch-status-btn')?.addEventListener('click', async () => {
+    hideApiOutcomes();
+    apiSpinner.classList.remove('hidden');
+    try {
+      const response = await fetch('/api/status');
+      const text = await response.text();
+      apiSpinner.classList.add('hidden');
+      apiOutcomeContainer.innerHTML = `
+        <div id="status-message" class="outcome-box success">
+          <h3>Status Response: ${text}</h3>
+        </div>
+      `;
+    } catch(err) {
+      apiSpinner.classList.add('hidden');
     }
   });
 });

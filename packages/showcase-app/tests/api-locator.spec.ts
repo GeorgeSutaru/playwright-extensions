@@ -40,8 +40,6 @@ test.describe('Showcase Application - apiLocator', () => {
     await expect(page.locator('#status-message')).toContainText(await dynamicLoc.innerText());
   });
   
-});
-
   test('throws meaningful error if payload does not contain the specified path', async ({ page }) => {
     // Manually trigger the missing path API since it's just for error validation
     await page.evaluate(() => { fetch('http://localhost:8300/api/missing-path'); });
@@ -68,3 +66,5 @@ test.describe('Showcase Application - apiLocator', () => {
     expect(errorMsg).toContain('Could not extract path "$.data.user.name"');
     expect(errorMsg).toContain('{"error":"Internal Server Error","context":"Database timeout"}'); // Should include matched body
   });
+
+});
