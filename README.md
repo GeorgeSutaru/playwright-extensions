@@ -45,6 +45,37 @@ To install the latest version of the core extensions and the reporter, simply ad
 npm install @playwright-extensions/core@latest @playwright-extensions/reporter@latest
 ```
 
+After installation, update your `playwright.config.ts` to use the custom extended wrapper. This natively provides typescript intellisense for all our custom integrations:
+
+```typescript
+// playwright.config.ts
+import { defineConfig } from '@playwright-extensions/core/config';
+
+export default defineConfig({
+  use: {
+    // Ecosystem overrides
+    watchElements: true,
+    interceptors: { requests: true, console: true, errors: true }
+  },
+  reporter: [
+    ['@playwright-extensions/reporter', { serverUrl: 'http://localhost:8400' }],
+    ['list']
+  ],
+});
+```
+
+To execute, ensure your `package.json` maps your test script correctly to the standard `playwright test` command (the extensions will automatically latch on thanks to the modified config!). 
+
+```json
+{
+  "scripts": {
+    "test:e2e": "playwright test"
+  }
+}
+```
+
+For a comprehensive explanation of the wrapper interface, check out the full [Extended Configuration](https://www.sutaru.ro/docs/playwright-extensions/extended-config) guide!
+
 ## Development
 
 This is a monorepo using npm workspaces. Each package can be built and tested independently:
