@@ -64,7 +64,7 @@ export function createClientInfo(): ClientInfo {
   const crypto = require('crypto');
 
   if (!playwrightPaths) {
-    throw new Error('playwright-cli not found. Install with: npm install -g @playwright/cli');
+    throw new Error('Playwright not found. Please ensure it is installed in your project.');
   }
 
   const packageJSON = require(path.join(playwrightPaths.playwrightDir, 'package.json'));

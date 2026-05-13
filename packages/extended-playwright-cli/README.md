@@ -44,7 +44,7 @@ Options:
 
 ## Architecture
 
-- Resolves the global `@playwright/cli` installation and spawns the daemon natively
+- Resolves the local `@playwright/test` installation and spawns the daemon natively
 - Implements its own `PlaywrightSession` wrapper over the NDJSON socket protocol
 - Session files stored in `~/Library/Caches/ms-playwright/daemon/`
 - Custom commands routed before falling through to standard playwright commands

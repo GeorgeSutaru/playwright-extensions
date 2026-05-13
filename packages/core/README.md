@@ -16,7 +16,7 @@ import { LocatorRace } from '@playwright-extensions/core';
 
 ## Extensions
 
-### Element Events (Mutation Watcher)
+### Element Events
 Track `created`, `changed`, and `deleted` events for specific element locators efficiently using a native browser-side `MutationObserver` mapped securely via internal Playwright engine references.
 
 This avoids performance heavy network round-trips for multiple status checks, and safely tracks old and new string changes directly in a buffered array.

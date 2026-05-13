@@ -40,7 +40,6 @@ extended-playwright-cli reporter-diff <fingerprint> <runA> <runB> [before|after]
 ## Prerequisites
 
 - Node.js 22+
-- `@playwright/cli` installed globally (`npm install -g @playwright/cli`)
 
 ## Getting Started
 
