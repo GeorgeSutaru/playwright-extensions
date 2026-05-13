@@ -57,3 +57,26 @@ This is a monorepo using npm workspaces. Each package can be built and tested in
 npm run build -w packages/<package-name>
 npm test -w packages/<package-name>
 ```
+
+## Releasing and Publishing
+
+NPM clients (`core`, `reporter`, `extended-playwright-cli`, etc.) can be directly patched and published to the NPM registry normally:
+
+```bash
+cd packages/core && npm version patch && npm publish --access public
+```
+
+### Reporter Server (Docker)
+The `reporter-server` application should **not** be published as an NPM module. Instead, it natively distributes as a Docker container.
+
+To manually publish a new version of the dashboard image:
+```bash
+# Authenticate to GHCR
+echo $CR_PAT | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+
+# Build and Tag
+docker build -t ghcr.io/georgesutaru/playwright-extensions-reporter-server:latest -f packages/reporter-server/Dockerfile .
+
+# Push
+docker push ghcr.io/georgesutaru/playwright-extensions-reporter-server:latest
+```

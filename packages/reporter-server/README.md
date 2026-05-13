@@ -15,7 +15,7 @@ docker run -d \
   -p 8400:8400 \
   -v reporter-data:/data \
   --name playwright-reporter \
-  ghcr.io/username/playwright-extensions-reporter-server:latest
+  ghcr.io/georgesutaru/playwright-extensions-reporter-server:latest
 ```
 
 The server is available at `http://localhost:8400`. PostgreSQL runs fully isolated inside the container.
@@ -27,7 +27,7 @@ version: '3.8'
 
 services:
   reporter:
-    image: ghcr.io/username/playwright-extensions-reporter-server:latest
+    image: ghcr.io/georgesutaru/playwright-extensions-reporter-server:latest
     ports:
       - "8400:8400"
     environment:
