@@ -1,6 +1,6 @@
 {
   "name": "@playwright-extensions/reporter-server",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "Dashboard server for extended-playwright-reporter",
   "main": "./dist/index.js",
