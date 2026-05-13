@@ -37,16 +37,12 @@ You can use the extended Playwright CLI to seamlessly inspect and compare visual
 extended-playwright-cli reporter-diff <fingerprint> <runA> <runB> [before|after]
 ```
 
-## Prerequisites
-
-- Node.js 22+
-
 ## Getting Started
 
+To install the latest version of the core extensions and the reporter, simply add them via npm:
+
 ```bash
-npm install
-npm run build
-npm test
+npm install @playwright-extensions/core@latest @playwright-extensions/reporter@latest
 ```
 
 ## Development
