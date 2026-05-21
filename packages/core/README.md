@@ -154,7 +154,7 @@ npm install @playwright-extensions/core
 #### Quick Start
 
 ```javascript
-const { launchSyncBrowser } = require('@playwright-extensions/core/sync');
+const { launchSyncBrowser } = require('@playwright-extensions/core');
 
 const browser = launchSyncBrowser('chromium', { headless: true });
 const context = browser.newContext();

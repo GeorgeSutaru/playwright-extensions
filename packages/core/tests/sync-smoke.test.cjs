@@ -1,4 +1,4 @@
-const { launchSyncBrowser } = require('../dist/sync/index.js');
+const { launchSyncBrowser } = require('../dist/index.js');
 
 const results = [];
 let passed = 0;

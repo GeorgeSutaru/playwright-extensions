@@ -9,11 +9,6 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
-    },
-    "./sync": {
-      "import": "./dist/sync/index.js",
-      "require": "./dist/sync/index.js",
-      "types": "./dist/sync/index.d.ts"
     }
   },
   "files": [
