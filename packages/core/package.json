@@ -16,7 +16,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "mkdir -p dist/skill/references && cp src/skill/SKILL.md dist/skill/ && cp src/skill/references/*.md dist/skill/references/",
     "test": "playwright test",
     "lint": "eslint src/",
     "clean": "rm -rf dist"

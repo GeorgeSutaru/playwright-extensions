@@ -7,13 +7,11 @@ Handle pages where content appears, disappears, or changes over time.
 Race between loading indicators and content:
 
 ```typescript
-// Wait for content to replace loading spinner
 const winner = await LocatorRace.race([
   page.locator('.loading-spinner'),
   page.locator('.content-loaded'),
 ], { timeout: 10000 });
 
-// If spinner is still visible after timeout, content didn't load
 if (await winner.locator('.loading-spinner').isVisible().catch(() => false)) {
   throw new Error('Content failed to load');
 }
@@ -22,7 +20,6 @@ if (await winner.locator('.loading-spinner').isVisible().catch(() => false)) {
 ### Lazy Content
 
 ```typescript
-// Race between skeleton loader and actual content
 const winner = await LocatorRace.race([
   page.locator('.skeleton'),
   page.locator('.data-table'),
@@ -35,7 +32,6 @@ expect(isData).toBe(true);
 ### Deferred Rendering
 
 ```typescript
-// Content may appear at different times
 const winner = await LocatorRace.race([
   page.locator('#quick-render'),
   page.locator('#deferred-render'),
@@ -49,7 +45,6 @@ expect(await winner.isVisible()).toBe(true);
 ### State Transitions
 
 ```typescript
-// Wait for element to transition between states
 const winner = await LocatorRace.race([
   page.locator('.state--loading'),
   page.locator('.state--ready'),
@@ -61,13 +56,11 @@ expect(await winner.getAttribute('class')).toContain('ready');
 ### Animated Content
 
 ```typescript
-// Handle content that fades/slides in
 const winner = await LocatorRace.race([
   page.locator('.animation--entering'),
   page.locator('.animation--entered'),
 ], { timeout: 2000 });
 
-// Wait for animation to complete
 await page.waitForTimeout(500);
 expect(await winner.isVisible()).toBe(true);
 ```
@@ -77,7 +70,6 @@ expect(await winner.isVisible()).toBe(true);
 ### API Response Waiting
 
 ```typescript
-// Race between initial state and API-populated state
 await page.click('button[data-action="load-data"]');
 
 const winner = await LocatorRace.race([
@@ -92,7 +84,6 @@ expect(isEmpty).toBe(false);
 ### Race Conditions
 
 ```typescript
-// Handle race between concurrent operations
 await Promise.all([
   page.click('button[action="sync"]'),
   page.click('button[action="refresh"]'),
@@ -111,7 +102,6 @@ expect(await winner.isVisible()).toBe(true);
 ### List Updates
 
 ```typescript
-// Wait for list to update after action
 await page.click('button[data-action="add-item"]');
 
 const winner = await LocatorRace.race([
@@ -126,23 +116,12 @@ expect(hasItems).toBeGreaterThan(0);
 ### Pagination
 
 ```typescript
-// Handle dynamic pagination controls
 const winner = await LocatorRace.race([
   page.locator('.pagination--next'),
   page.locator('.pagination--last'),
 ], { timeout: 2000 });
 
 await winner.click();
-```
-
-## CLI Examples with pw-ext
-
-```bash
-# Race between loading spinner and content
-pw-ext race-locator ".loading-spinner" ".content-loaded" --timeout 10000
-
-# Wait for dynamic list items
-pw-ext race-locator ".list--empty" ".list-item" --timeout 3000
 ```
 
 ## Best Practices

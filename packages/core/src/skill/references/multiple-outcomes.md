@@ -1,6 +1,6 @@
 # Multiple Outcomes with Race Locator
 
-When UI can display multiple possible elements (A/B tests, feature flags, conditional rendering), use `raceLocator` to handle ambiguity without brittle conditionals.
+When UI can display multiple possible elements (A/B tests, feature flags, conditional rendering), use `LocatorRace.race()` to handle ambiguity without brittle conditionals.
 
 ## The Problem
 
@@ -18,7 +18,7 @@ if (await page.locator('#variant-a').isVisible()) {
 }
 ```
 
-## The Solution: raceLocator
+## The Solution: LocatorRace
 
 ```typescript
 import { LocatorRace } from '@playwright-extensions/core';
@@ -39,7 +39,6 @@ await winner.click();
 test('checkout with A/B test', async ({ page }) => {
   await page.goto('/checkout');
 
-  // Either variant may be shown
   const checkoutBtn = await LocatorRace.race([
     page.getByRole('button', { name: 'Pay Now' }),
     page.getByRole('button', { name: 'Proceed to Payment' }),
@@ -56,7 +55,6 @@ test('checkout with A/B test', async ({ page }) => {
 test('new feature flag enabled', async ({ page }) => {
   await page.goto('/dashboard');
 
-  // New or old dashboard may be active
   const welcome = await LocatorRace.race([
     page.getByRole('heading', { name: 'New Dashboard' }),
     page.getByRole('heading', { name: 'Dashboard' }),
@@ -75,19 +73,15 @@ test('login with optional 2FA', async ({ page }) => {
   await page.fill('input[name=password]', 'secret');
   await page.click('button[type=submit]');
 
-  // May show 2FA prompt or go directly to dashboard
   const winner = await LocatorRace.race([
     page.getByRole('heading', { name: 'Verify Code' }),
     page.getByRole('heading', { name: 'Dashboard' }),
   ], { timeout: 5000 });
 
-  if (await winner.isVisible()) {
-    const text = await winner.textContent();
-    if (text.includes('Verify')) {
-      // Handle 2FA flow
-      await page.fill('input[name=code]', '123456');
-      await page.click('button[type=submit]');
-    }
+  const text = await winner.textContent();
+  if (text.includes('Verify')) {
+    await page.fill('input[name=code]', '123456');
+    await page.click('button[type=submit]');
   }
 });
 ```
@@ -117,7 +111,6 @@ test('form submission with multiple outcomes', async ({ page }) => {
 test('dynamic component renders one of several variants', async ({ page }) => {
   await page.goto('/widget');
 
-  // Widget may render as any of several component types
   const widget = await LocatorRace.race([
     page.locator('.widget--chart'),
     page.locator('.widget--table'),
@@ -126,19 +119,6 @@ test('dynamic component renders one of several variants', async ({ page }) => {
 
   expect(await widget.isVisible()).toBe(true);
 });
-```
-
-## CLI Examples with pw-ext
-
-```bash
-# A/B test variants
-pw-ext race-locator "#variant-a" "#variant-b"
-
-# Feature flag scenarios
-pw-ext race-locator "button:has-text(Pay Now)" "button:has-text(Proceed to Payment)"
-
-# With timeout
-pw-ext race-locator "heading:has-text(Verify Code)" "heading:has-text(Dashboard)" --timeout 5000
 ```
 
 ## Best Practices

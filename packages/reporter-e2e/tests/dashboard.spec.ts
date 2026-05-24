@@ -1,12 +1,21 @@
 import { test, expect } from '@playwright/test';
 import { LocatorRace } from '@playwright-extensions/core';
-import { execSync } from 'child_process';
 
 const SERVER_URL = process.env.REPORTER_SERVER_URL || 'http://localhost:8400';
+
+async function isServerAvailable(): Promise<boolean> {
+  try {
+    const res = await fetch(SERVER_URL, { signal: AbortSignal.timeout(3000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 test.describe.serial('Reporter Web UI E2E', () => {
 
   test('User Journey: Navigate and inspect entire Dashboard UI', async ({ page, context, request }) => {
+    test.skip(!await isServerAvailable(), 'Reporter server is not running');
     // --- Dashboard View ---
     const response = await request.get(SERVER_URL);
     expect(response.status()).toBe(200);

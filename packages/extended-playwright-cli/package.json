@@ -8,7 +8,8 @@
     "extended-playwright-cli": "./bin/extended-playwright-cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "mkdir -p dist/skill && cp src/skill/SKILL.md dist/skill/",
     "test": "vitest run",
     "clean": "rm -rf dist"
   },

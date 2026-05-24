@@ -16,7 +16,6 @@ try {
   ]);
 } catch (err) {
   if (err.message.includes('Strict mode violation')) {
-    // Multiple elements matched - handle the ambiguity
     console.log('Multiple elements found:', err.message);
   }
 }
@@ -34,7 +33,6 @@ try {
   ], { timeout: 3000 });
 } catch (err) {
   if (err.message.includes('Timeout')) {
-    // Neither element appeared - handle gracefully
     console.log('Expected elements not found');
   }
 }
@@ -108,18 +106,15 @@ async function clickWithFallback(page: Page): Promise<void> {
 ```typescript
 async function handleOptionalDialog(page: Page): Promise<boolean> {
   try {
-    // Race between dialog appearing and timeout
     const winner = await LocatorRace.race([
       page.locator('.dialog--confirm'),
       page.locator('.dialog--dismiss'),
     ], { timeout: 2000 });
 
-    // Dialog appeared - dismiss it
     const dismissBtn = winner.locator('button:has-text("Dismiss")');
     await dismissBtn.click({ timeout: 1000 }).catch(() => {});
     return true;
   } catch {
-    // No dialog appeared - continue
     return false;
   }
 }
@@ -138,29 +133,14 @@ async function handleRaceResult(page: Page): Promise<string> {
     return await winner.textContent();
   } catch (err: any) {
     if (err.message.includes('Strict mode violation')) {
-      // Multiple elements visible - unexpected state
       throw new Error('Unexpected UI state: multiple elements visible');
     }
     if (err.message.includes('No locator satisfied')) {
-      // Neither element appeared - timeout or hidden
       return 'neither-shown';
     }
     throw err;
   }
 }
-```
-
-## CLI Examples with pw-ext
-
-```bash
-# pw-ext exits with code 1 on failure - check exit code in scripts
-pw-ext race-locator "#maybe-shown" "#maybe-hidden" --timeout 3000
-if [ $? -ne 0 ]; then
-  echo "Expected elements not found"
-fi
-
-# Use presence mode for elements that may be hidden
-pw-ext race-locator "#hidden-a" "#hidden-b" --visibility presence
 ```
 
 ## Best Practices
