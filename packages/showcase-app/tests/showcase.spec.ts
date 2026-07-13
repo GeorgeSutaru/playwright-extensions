@@ -9,7 +9,8 @@ test.describe('Showcase Application', () => {
   test('handles unpredictable API outcome gracefully', async ({ page }) => {
     await page.click('#process-btn');
     
-    // The spinner should appear
+    // Wait for the spinner to appear before asserting
+    await page.waitForSelector('#loading-spinner', { state: 'visible' });
     await expect(page.locator('#loading-spinner')).toBeVisible();
 
     // Now we wait to see which message appears first (success or error)

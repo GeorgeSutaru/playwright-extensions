@@ -11,7 +11,8 @@ export default defineConfig({
     ['@playwright-extensions/reporter', {
       serverUrl: process.env.REPORTER_SERVER_URL || 'http://localhost:8400',
       projectName: 'core',
-    }]
+    }],
+    ['line'],
   ],
   use: {
     trace: 'on-first-retry',

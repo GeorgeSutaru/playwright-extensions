@@ -1,6 +1,7 @@
 import { test as base, expect as pwExpect, Page, Locator } from '@playwright/test';
 import { JSONPath } from 'jsonpath-plus';
 import { XMLParser } from 'fast-xml-parser';
+import { launchSyncBrowser, SyncPage, SyncBrowser } from './sync';
 
 export interface QueryResponseLocator extends Promise<any> {
     first(): QueryResponseLocator;
@@ -93,15 +94,32 @@ function matchStatusCode(status: number, codes: (number | string)[]) {
 export type ExtendedTestOptions = {
   interceptors: any;
   watchElements?: boolean;
+  syncBrowserType?: 'chromium' | 'firefox' | 'webkit';
+  syncHeadless?: boolean;
 };
 
 export type ExtendedLocator = Locator;
 
 export type ExtendedPage = Page;
 
-export const test = base.extend<ExtendedTestOptions & { _autoInterceptors: void, page: ExtendedPage }>({
+export const test = base.extend<ExtendedTestOptions & { _autoInterceptors: void, page: ExtendedPage, syncPage: SyncPage, syncBrowser: SyncBrowser }>({
   interceptors: [{}, { option: true }],
   watchElements: [false, { option: true }],
+  syncBrowserType: ['chromium', { option: true }],
+  syncHeadless: [true, { option: true }],
+  
+  syncBrowser: async ({ syncBrowserType, syncHeadless }, use: (v: SyncBrowser) => Promise<void>) => {
+    const browser = launchSyncBrowser(syncBrowserType, { headless: syncHeadless });
+    await use(browser);
+    browser.close();
+  },
+
+  syncPage: async ({ syncBrowser }, use: (v: SyncPage) => Promise<void>) => {
+    const context = syncBrowser.newContext();
+    const page = context.newPage();
+    await use(page);
+    context.close();
+  },
   
   page: async ({ page, watchElements }, use) => {
     const apiResponses: { url: string, status: number, body: Promise<string> }[] = [];

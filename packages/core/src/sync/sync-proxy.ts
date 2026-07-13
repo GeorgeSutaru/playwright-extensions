@@ -187,11 +187,16 @@ function serializeArgs(args: unknown[]): unknown[] {
   return args.map(arg => serializeArg(arg));
 }
 
+const CHAINABLE_METHODS = new Set([
+  'goto', 'goBack', 'goForward', 'reload',
+  'waitForURL', 'waitForLoadState', 'waitForTimeout',
+]);
+
 function syncCall(worker: SyncWorker, objectId: string, method: string, args: unknown[], proxyTarget: object): unknown {
   const raw = worker.sendSync({ type: 'call', objectId, method, args });
   const unwrapped = unwrapSyncResult(raw, worker);
-  // Return the proxy itself for void results to enable chaining
   if (unwrapped === undefined) return proxyTarget as unknown;
+  if (CHAINABLE_METHODS.has(method)) return proxyTarget as unknown;
   return unwrapped;
 }
 
